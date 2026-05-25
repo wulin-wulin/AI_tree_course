@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { BookOpenCheck, Braces, GitBranch, Lightbulb, Tags } from 'lucide-react';
+import { BookOpenCheck, Braces, GitBranch, Lightbulb, Tags, Target, Workflow, Zap } from 'lucide-react';
 import AnimationBlock from './AnimationBlock';
 import DiagramBlock from './DiagramBlock';
 import FormulaBlock from './FormulaBlock';
@@ -11,6 +11,12 @@ type KnowledgeDetailPanelProps = {
 };
 
 function KnowledgeDetailPanel({ point, cluster }: KnowledgeDetailPanelProps) {
+  const expressionTags = [
+    point.formula ? '公式' : null,
+    point.visualType ? '图示' : null,
+    point.animationType && point.animationType !== 'none' ? '动画' : null,
+  ].filter(Boolean);
+
   return (
     <aside
       className="detail-panel"
@@ -22,6 +28,24 @@ function KnowledgeDetailPanel({ point, cluster }: KnowledgeDetailPanelProps) {
         <span className={`difficulty difficulty-${point.difficulty}`}>{point.difficulty}</span>
         <h2>{point.title}</h2>
         <p>{point.shortSummary}</p>
+      </div>
+
+      <div className="detail-meta-grid" aria-label="学习提示">
+        <div>
+          <Target size={16} aria-hidden="true" />
+          <span>学习目标</span>
+          <strong>理解{point.title}的机制与适用场景</strong>
+        </div>
+        <div>
+          <Workflow size={16} aria-hidden="true" />
+          <span>前置建议</span>
+          <strong>{point.prerequisites?.slice(0, 2).join(' / ') || '可直接学习'}</strong>
+        </div>
+        <div>
+          <Zap size={16} aria-hidden="true" />
+          <span>表达形式</span>
+          <strong>{expressionTags.join(' / ') || '文本讲解'}</strong>
+        </div>
       </div>
 
       <section className="detail-section">
