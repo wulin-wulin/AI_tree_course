@@ -9,7 +9,7 @@ type KnowledgeNodeProps = {
 };
 
 function KnowledgeNode({ point, selected, style, onSelect }: KnowledgeNodeProps) {
-  const label = point.title.length > 7 ? `${point.title.slice(0, 7)}...` : point.title;
+  const label = point.title.length > 7 ? `${point.title.slice(0, 7)}…` : point.title;
 
   return (
     <button
