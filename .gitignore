@@ -144,3 +144,6 @@ vite.config.ts.timestamp-*
 # Project package-manager policy
 pnpm-lock.yaml
 yarn.lock
+
+# Agent-generated review artifacts
+.agents/artifacts/
