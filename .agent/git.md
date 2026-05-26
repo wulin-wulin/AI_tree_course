@@ -13,10 +13,10 @@
 示例：
 
 ```text
-docs(agent): add project memory guidelines
-feat(atlas): improve knowledge cluster navigation
-fix(detail): keep selected knowledge point in sync
-refactor(data): normalize course knowledge fields
+docs(agent): 添加项目长期记忆规范
+feat(atlas): 优化知识簇导航
+fix(detail): 修复知识点选择同步问题
+refactor(data): 规范课程知识字段
 ```
 
 ## 常用 type
@@ -49,8 +49,7 @@ scope 使用小写短词，优先表达变更影响范围：
 
 ## subject 规范
 
-- 使用英文祈使句或简短动词短语。
-- 首字母小写。
+- 使用中文描述本次提交的具体目的。
 - 不以句号结尾。
 - 尽量控制在 72 个字符以内。
 - 一次提交只描述一个清晰目的。
@@ -58,15 +57,15 @@ scope 使用小写短词，优先表达变更影响范围：
 推荐：
 
 ```text
-docs(agent): add git commit guidelines
-fix(atlas): prevent cluster nodes from overlapping
+docs(agent): 添加 Git 提交规范
+fix(atlas): 避免知识簇节点重叠
 ```
 
 不推荐：
 
 ```text
 update files
-fix bug.
+修复问题。
 WIP
 ```
 
