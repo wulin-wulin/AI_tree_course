@@ -1,5 +1,5 @@
-import type { CSSProperties } from 'react';
-import { Activity, CircleDot, Layers3, PlayCircle } from 'lucide-react';
+import { useMemo, type CSSProperties } from 'react';
+import { ArrowLeft, CircleDot, Layers3, PlayCircle, Route } from 'lucide-react';
 import type { KnowledgeCluster, KnowledgePoint } from '../data/courseKnowledge';
 
 type KnowledgeAtlasProps = {
@@ -14,20 +14,21 @@ type KnowledgeAtlasProps = {
 type ClusterLayout = {
   x: number;
   y: number;
-  rx: number;
-  ry: number;
 };
 
 const clusterLayouts: Record<string, ClusterLayout> = {
-  'intro-history': { x: 15, y: 22, rx: 96, ry: 56 },
-  'search-solving': { x: 42, y: 17, rx: 104, ry: 58 },
-  'knowledge-reasoning': { x: 70, y: 25, rx: 102, ry: 58 },
-  'machine-learning': { x: 24, y: 52, rx: 108, ry: 62 },
-  'deep-learning': { x: 52, y: 49, rx: 116, ry: 68 },
-  'nlp-vision': { x: 79, y: 55, rx: 104, ry: 62 },
-  'rl-agents': { x: 36, y: 80, rx: 96, ry: 58 },
-  'generative-safety': { x: 66, y: 80, rx: 108, ry: 62 },
+  'intro-history': { x: 15, y: 22 },
+  'search-solving': { x: 42, y: 17 },
+  'knowledge-reasoning': { x: 70, y: 25 },
+  'machine-learning': { x: 24, y: 52 },
+  'deep-learning': { x: 52, y: 49 },
+  'nlp-vision': { x: 79, y: 55 },
+  'rl-agents': { x: 36, y: 80 },
+  'generative-safety': { x: 66, y: 80 },
 };
+
+const FOCUS_RX = 248;
+const FOCUS_RY = 188;
 
 function KnowledgeAtlas({
   clusters,
@@ -37,12 +38,36 @@ function KnowledgeAtlas({
   onPointSelect,
   onClusterChange,
 }: KnowledgeAtlasProps) {
-  const selectedPoint = points.find((point) => point.id === selectedPointId) ?? points[0];
-  const focusClusterId = activeClusterId === 'all' ? selectedPoint.clusterId : activeClusterId;
+  const isOverview = activeClusterId === 'all';
+  const pointsByCluster = useMemo(() => {
+    const grouped = new Map<string, KnowledgePoint[]>();
+    for (const point of points) {
+      const group = grouped.get(point.clusterId);
+      if (group) {
+        group.push(point);
+      } else {
+        grouped.set(point.clusterId, [point]);
+      }
+    }
+    return grouped;
+  }, [points]);
+
+  const focusedCluster = useMemo(
+    () => clusters.find((cluster) => cluster.id === activeClusterId) ?? null,
+    [activeClusterId, clusters],
+  );
 
   return (
-    <div className="atlas-map" aria-label="交互式课程知识地图">
-      <svg className="atlas-backbone" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+    <div
+      className={`atlas-map ${isOverview ? 'is-overview' : 'is-focus'}`}
+      aria-label="交互式课程知识地图"
+    >
+      <svg
+        className="atlas-backbone"
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      >
         <path
           d="M15 22 C26 8 35 12 42 17 S60 18 70 25 S86 39 79 55 S76 73 66 80 S48 88 36 80 S18 67 24 52 S10 34 15 22"
           className="atlas-route"
@@ -56,87 +81,136 @@ function KnowledgeAtlas({
 
       {clusters.map((cluster, clusterIndex) => {
         const layout = clusterLayouts[cluster.id];
-        const clusterPoints = points.filter((point) => point.clusterId === cluster.id);
-        const isExpanded = cluster.id === focusClusterId;
-        const isSelectedCluster = selectedPoint.clusterId === cluster.id;
-        const renderedPoints = isExpanded ? clusterPoints : clusterPoints.slice(0, 3);
+        const clusterPoints = pointsByCluster.get(cluster.id) ?? [];
+        const isFocused = !isOverview && cluster.id === activeClusterId;
+        const isHidden = !isOverview && !isFocused;
+
         const style = {
           '--atlas-accent': cluster.accent,
           '--atlas-soft': cluster.soft,
           '--atlas-dark': cluster.dark,
-          left: `${layout.x}%`,
-          top: `${layout.y}%`,
+          left: isFocused ? '50%' : `${layout.x}%`,
+          top: isFocused ? '50%' : `${layout.y}%`,
         } as CSSProperties;
 
         return (
           <section
             key={cluster.id}
-            className={`atlas-cluster ${isExpanded ? 'is-expanded' : ''} ${isSelectedCluster ? 'is-current' : ''}`}
+            className={`atlas-cluster ${isFocused ? 'is-focused' : ''} ${isHidden ? 'is-hidden' : ''}`}
             style={style}
             aria-label={`${cluster.title}知识簇`}
+            aria-hidden={isHidden}
           >
+            {isFocused ? (
+              <svg className="atlas-radial" aria-hidden="true">
+                {clusterPoints.map((point, pointIndex) => {
+                  const total = clusterPoints.length;
+                  const angle = -Math.PI / 2 + (pointIndex / Math.max(total, 1)) * Math.PI * 2;
+                  const dx = Math.cos(angle) * FOCUS_RX;
+                  const dy = Math.sin(angle) * FOCUS_RY;
+                  return (
+                    <line
+                      key={point.id}
+                      x1={0}
+                      y1={0}
+                      x2={dx}
+                      y2={dy}
+                      className="atlas-radial-line"
+                      style={{ '--node-delay': `${80 + pointIndex * 55}ms` } as CSSProperties}
+                    />
+                  );
+                })}
+              </svg>
+            ) : null}
+
             <button
               type="button"
               className="atlas-hub"
-              onClick={() => onClusterChange(cluster.id)}
-              aria-pressed={isExpanded}
+              onClick={() => {
+                if (isFocused) return;
+                onClusterChange(cluster.id);
+              }}
+              aria-pressed={isFocused}
+              tabIndex={isHidden ? -1 : 0}
             >
               <span className="hub-index">{String(clusterIndex + 1).padStart(2, '0')}</span>
               <span className="hub-title">{cluster.title}</span>
               <span className="hub-count">{clusterPoints.length} 点</span>
             </button>
 
-            {renderedPoints.map((point, pointIndex) => {
-              const total = renderedPoints.length;
-              const angle = -Math.PI / 2 + (pointIndex / Math.max(total, 1)) * Math.PI * 2;
-              const dx = Math.cos(angle) * layout.rx;
-              const dy = Math.sin(angle) * layout.ry;
-              const isSelected = point.id === selectedPointId;
-              const nodeStyle = {
-                '--node-x': `${dx}px`,
-                '--node-y': `${dy}px`,
-                '--node-delay': `${pointIndex * 55}ms`,
-              } as CSSProperties;
+            {isFocused
+              ? clusterPoints.map((point, pointIndex) => {
+                  const total = clusterPoints.length;
+                  const angle = -Math.PI / 2 + (pointIndex / Math.max(total, 1)) * Math.PI * 2;
+                  const dx = Math.cos(angle) * FOCUS_RX;
+                  const dy = Math.sin(angle) * FOCUS_RY;
+                  const isSelected = point.id === selectedPointId;
+                  const nodeStyle = {
+                    '--node-x': `${dx}px`,
+                    '--node-y': `${dy}px`,
+                    '--node-delay': `${140 + pointIndex * 55}ms`,
+                  } as CSSProperties;
 
-              return (
-                <button
-                  key={point.id}
-                  type="button"
-                  className={`atlas-node ${isExpanded ? 'is-expanded' : 'is-compact'} ${isSelected ? 'is-selected' : ''}`}
-                  style={nodeStyle}
-                  onClick={() => {
-                    onClusterChange(cluster.id);
-                    onPointSelect(point.id);
-                  }}
-                  title={point.title}
-                >
-                  <span className="node-signal" aria-hidden="true" />
-                  <span className="atlas-node-title">{point.title}</span>
-                  {point.animationType && point.animationType !== 'none' ? (
-                    <PlayCircle size={13} aria-label="含动画" />
-                  ) : null}
-                </button>
-              );
-            })}
-
-            {!isExpanded ? <span className="cluster-reserve">+{Math.max(clusterPoints.length - 3, 0)}</span> : null}
+                  return (
+                    <button
+                      key={point.id}
+                      type="button"
+                      className={`atlas-node ${isSelected ? 'is-selected' : ''}`}
+                      style={nodeStyle}
+                      aria-label={`查看知识点：${point.title}`}
+                      aria-pressed={isSelected}
+                      onClick={() => onPointSelect(point.id)}
+                      title={point.title}
+                    >
+                      <span className="node-signal" aria-hidden="true" />
+                      <span className="atlas-node-title">{point.title}</span>
+                      {point.animationType && point.animationType !== 'none' ? (
+                        <PlayCircle size={13} aria-label="含动画" />
+                      ) : null}
+                    </button>
+                  );
+                })
+              : null}
           </section>
         );
       })}
 
+      {!isOverview && focusedCluster ? (
+        <button
+          type="button"
+          className="atlas-return"
+          onClick={() => onClusterChange('all')}
+          aria-label="返回知识图谱概览"
+        >
+          <ArrowLeft size={14} aria-hidden="true" />
+          返回概览
+        </button>
+      ) : null}
+
       <div className="atlas-legend" aria-label="地图图例">
-        <span>
-          <CircleDot size={14} aria-hidden="true" />
-          当前知识点
-        </span>
-        <span>
-          <Activity size={14} aria-hidden="true" />
-          主题路径
-        </span>
-        <span>
-          <Layers3 size={14} aria-hidden="true" />
-          展开知识簇
-        </span>
+        {isOverview ? (
+          <>
+            <span>
+              <Route size={14} aria-hidden="true" />
+              主干路径
+            </span>
+            <span>
+              <Layers3 size={14} aria-hidden="true" />
+              点击章节进入子图
+            </span>
+          </>
+        ) : (
+          <>
+            <span>
+              <CircleDot size={14} aria-hidden="true" />
+              当前知识点
+            </span>
+            <span>
+              <Layers3 size={14} aria-hidden="true" />
+              {focusedCluster?.title ?? ''}
+            </span>
+          </>
+        )}
       </div>
     </div>
   );

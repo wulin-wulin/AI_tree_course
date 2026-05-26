@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import { useMemo, type CSSProperties } from 'react';
 import { BookMarked, LocateFixed, Route, Search, Sparkles } from 'lucide-react';
 import KnowledgeAtlas from './KnowledgeAtlas';
 import type { KnowledgeCluster as Cluster, KnowledgePoint } from '../data/courseKnowledge';
@@ -20,12 +20,29 @@ function KnowledgeForest({
   onPointSelect,
   onClusterChange,
 }: KnowledgeForestProps) {
-  const selectedPoint = points.find((point) => point.id === selectedPointId) ?? points[0];
+  const selectedPoint = useMemo(
+    () => points.find((point) => point.id === selectedPointId) ?? points[0],
+    [points, selectedPointId],
+  );
   const focusClusterId = activeClusterId === 'all' ? selectedPoint.clusterId : activeClusterId;
-  const focusCluster = clusters.find((cluster) => cluster.id === focusClusterId) ?? clusters[0];
-  const focusPoints = points.filter((point) => point.clusterId === focusCluster.id);
-  const formulaCount = focusPoints.filter((point) => point.formula).length;
-  const animationCount = focusPoints.filter((point) => point.animationType && point.animationType !== 'none').length;
+  const focusCluster = useMemo(
+    () => clusters.find((cluster) => cluster.id === focusClusterId) ?? clusters[0],
+    [clusters, focusClusterId],
+  );
+  const focusPoints = useMemo(
+    () => points.filter((point) => point.clusterId === focusCluster.id),
+    [focusCluster.id, points],
+  );
+  const formulaCount = useMemo(() => focusPoints.filter((point) => point.formula).length, [focusPoints]);
+  const animationCount = useMemo(
+    () => focusPoints.filter((point) => point.animationType && point.animationType !== 'none').length,
+    [focusPoints],
+  );
+  const selectedIndex = Math.max(
+    focusPoints.findIndex((point) => point.id === selectedPointId),
+    0,
+  );
+  const progressPercent = focusPoints.length ? ((selectedIndex + 1) / focusPoints.length) * 100 : 0;
 
   return (
     <div className="forest-panel">
@@ -42,21 +59,27 @@ function KnowledgeForest({
         <div className="cluster-tabs" role="tablist" aria-label="选择知识簇">
           <button
             type="button"
+            role="tab"
             className={activeClusterId === 'all' ? 'is-active' : ''}
+            aria-selected={activeClusterId === 'all'}
             onClick={() => onClusterChange('all')}
           >
             <LocateFixed size={15} aria-hidden="true" />
             全部
           </button>
-          {clusters.map((cluster) => (
+          {clusters.map((cluster, index) => (
             <button
               key={cluster.id}
               type="button"
-              className={activeClusterId === cluster.id ? 'is-active' : ''}
+              role="tab"
+              className={`cluster-tab ${activeClusterId === cluster.id ? 'is-active' : ''}`}
               style={{ '--tab-accent': cluster.accent } as CSSProperties}
+              aria-selected={activeClusterId === cluster.id}
               onClick={() => onClusterChange(cluster.id)}
             >
-              {cluster.title}
+              <span className="cluster-tab-index">{String(index + 1).padStart(2, '0')}</span>
+              <span className="cluster-tab-dot" aria-hidden="true" />
+              <span className="cluster-tab-label">{cluster.title}</span>
             </button>
           ))}
         </div>
@@ -79,6 +102,23 @@ function KnowledgeForest({
           <span>动画点</span>
           <strong>{animationCount}</strong>
         </div>
+      </div>
+
+      <div
+        className="learning-progress"
+        style={{ '--brief-accent': focusCluster.accent, '--progress': `${progressPercent}%` } as CSSProperties}
+        aria-live="polite"
+      >
+        <div>
+          <span>当前知识点</span>
+          <strong>{selectedPoint.title}</strong>
+        </div>
+        <div className="progress-track" aria-label={`${focusCluster.title}学习进度`}>
+          <span />
+        </div>
+        <p>
+          第 {selectedIndex + 1} / {focusPoints.length} 个知识点，建议按路径逐个展开，先看核心思想，再看图示和应用。
+        </p>
       </div>
 
       <KnowledgeAtlas
@@ -112,6 +152,7 @@ function KnowledgeForest({
               key={point.id}
               type="button"
               className={`path-node ${point.id === selectedPointId ? 'is-selected' : ''}`}
+              aria-pressed={point.id === selectedPointId}
               onClick={() => onPointSelect(point.id)}
             >
               <span className="path-index">{String(index + 1).padStart(2, '0')}</span>
