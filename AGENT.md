@@ -1,6 +1,6 @@
 # Project Agent Memory
 
-本文件是项目级长期记忆入口，供后续参与本仓库的智能体优先阅读。它只保留必须立即知道的项目信息和工作边界；更详细的开发规范放在 `.agent/` 中。
+本文件是项目级长期记忆入口，供后续参与本仓库的智能体优先阅读。它只保留必须立即知道的项目信息和工作边界；更详细的开发规范放在 `.agents/` 中。
 
 若本文件与 `docs/requirements/` 中的最新轮次文档冲突，以最新轮次文档和用户明确指令为准。
 
@@ -62,9 +62,9 @@ npm run preview
 
 ## 辅助记忆
 
-- `.agent/README.md`：说明 `.agent/` 目录用途。
-- `.agent/development.md`：详细开发规范、模块说明、验证和产品注意事项。
-- `.agent/git.md`：Git 分支、提交信息和提交前检查规范。
+- `.agents/README.md`：说明 `.agents/` 目录用途。
+- `.agents/development.md`：详细开发规范、模块说明、验证和产品注意事项。
+- `.agents/git.md`：Git 分支、提交信息和提交前检查规范。
 
 ## 当前产品注意事项
 
