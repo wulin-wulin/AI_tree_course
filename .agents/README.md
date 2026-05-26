@@ -8,6 +8,8 @@
 
 - `development.md`：详细开发规范、模块说明、验证建议和产品注意事项。
 - `git.md`：Git 分支、提交信息和提交前检查规范。
+- `workflows/visual-ui-review.md`：UI 截图审查闭环。
+- `scripts/screenshot-ui.mjs`：Playwright 截图脚本。
 - `skills/`：通过 `npx skills add` 安装到项目内的 skills。
 
 ## 约定

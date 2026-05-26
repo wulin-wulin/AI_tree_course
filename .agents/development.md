@@ -23,7 +23,6 @@ src/
     KnowledgeDetailPanel.tsx
     KnowledgeForest.tsx
     KnowledgeNode.tsx
-    SkillStrip.tsx
   data/
     courseKnowledge.ts
   App.tsx
@@ -52,11 +51,13 @@ npm install
 npm run dev
 npm run build
 npm run preview
+npm run visual:review
 ```
 
 - `npm run dev`：启动 Vite 开发服务。
 - `npm run build`：执行 `tsc -b && vite build`，是当前优先验证命令。
 - `npm run preview`：预览生产构建。
+- `npm run visual:review`：使用 Playwright 截取桌面和移动端页面截图，输出到 `.agents/artifacts/screenshots/`。
 - 构建产物输出到 `dist/`。
 
 ## 需求执行流程
@@ -118,4 +119,5 @@ npm run preview
   - 点击知识点。
   - 右侧详情内容同步更新。
   - 动画和图示正常展示。
+- 视觉样式改动后，建议运行 `npm run visual:review`，根据 `.agents/artifacts/screenshots/desktop.png` 和 `mobile.png` 继续调整。
 - 如果无法运行验证命令，应在最终回复和执行反馈中说明原因。
