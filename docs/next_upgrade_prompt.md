@@ -7,13 +7,17 @@
 1. `docs/requirements/README.md`
 2. `docs/requirements/AGENT_PROTOCOL.md`
 3. `docs/requirements/current_state.md`
-4. `docs/requirements/rounds/R004_content_richness.md`
+4. `docs/requirements/rounds/R007_forest_map_serpentine.md`
 
 ## 当前执行轮次
 
-`R004`（状态：`Draft`，仍在需求讨论窗口讨论中，**暂不可实现**）
+`R007`（状态：`Ready`，**可实现**）
 
-> R001、R002、R003 均已 `Accepted` 关闭。R004 承接「三级结构简洁但偏空、像没什么内容」的反馈，目标是提升内容充实度与信息密度（不破坏 R003 简洁结构）。待讨论收敛、置 `Ready` 后再交付执行。
+> R001–R003 已 `Accepted`。R004–R006 均 `Reviewed`、未提交（森林地图的结构/树 icon/宽幅风景已被认可保留）。R007 只改**排布**：把 8 个章节节点改为**蛇形折返多行铺排**（第 1 行左→右、行末弯曲下行、第 2 行右→左……逐行蛇形走完 8 个），整幅**匀称、不太宽不太长、间距均匀**；保留 R005 树 icon 与 R006 艺术质感、不改结构/路由/数据/已有功能。验收以需求讨论窗口主观评审为准。
+
+## 实现完成后请自检视觉（UI 改动适用）
+
+涉及界面/视觉的改动，完成后请用项目 Playwright 截图工作流截取相关页面（本轮为 `/#/ai`），**自己查看截图核对效果**，按需微调迭代后再报告完成。详见 `docs/requirements/AGENT_PROTOCOL.md` 执行流程。
 
 ## 执行规则
 

@@ -2980,3 +2980,267 @@ a.course-card.is-open:focus-visible {
     animation: none;
   }
 }
+
+/* ===== R004–R007 · 章节导览：蛇形折返多行的俯览森林地图 ===== */
+
+.forest-map-page {
+  width: min(900px, 100%);
+  margin: 0 auto;
+}
+
+.forest-scene-wrap {
+  margin-top: 14px;
+}
+
+.forest-scene {
+  position: relative;
+  width: min(760px, 100%);
+  margin: 0 auto;
+  /* 近均衡比例：viewBox 1000 x 700 ≈ 1.43:1，不太宽也不太长 */
+  aspect-ratio: 1000 / 700;
+  /* 作为 container：树与文字用 cqw 单位随整幅宽度等比缩放（桌面/移动统一匀称） */
+  container-type: inline-size;
+}
+
+.forest-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 1px solid rgba(15, 23, 42, 0.07);
+  border-radius: 20px;
+  /* 圆角裁剪底景，树与预览卡仍可溢出画框外 */
+  overflow: hidden;
+  box-shadow: var(--shadow-soft);
+}
+
+/* 俯览地图扁平底景：平涂、柔和、退后，确保章节树 accent 仍是焦点 */
+.scene-glade {
+  fill: #eef5e6;
+  opacity: 0.6;
+}
+
+.scene-glade.soft {
+  fill: #f3f8ec;
+  opacity: 0.5;
+}
+
+.scene-bg-tree {
+  fill: #b8d2be;
+  opacity: 0.7;
+}
+
+.trail-band {
+  fill: none;
+  stroke: #ece1cd;
+  stroke-width: 11;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.trail-dash {
+  fill: none;
+  stroke: #c8b693;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-dasharray: 3 10;
+}
+
+.trail-mark {
+  fill: #8a9f95;
+  font-size: 21px;
+  font-weight: 800;
+  text-anchor: middle;
+}
+
+.forest-trees {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* 树站在小径上：以底边对齐节点，向上生长 */
+.forest-tree-slot {
+  position: absolute;
+  transform: translate(-50%, -100%);
+}
+
+.forest-tree {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  padding: 6px 8px 8px;
+  border-radius: 14px;
+  text-decoration: none;
+  transition: transform 180ms ease;
+}
+
+.forest-tree:hover,
+.forest-tree:focus-visible {
+  transform: translateY(-4px);
+}
+
+.forest-tree:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--chapter-accent) 40%, transparent);
+  outline-offset: 2px;
+}
+
+.tree-art {
+  display: block;
+  width: var(--tree-size, 56px);
+  filter: drop-shadow(0 8px 12px color-mix(in srgb, var(--chapter-accent) 22%, transparent));
+  transition: transform 200ms ease;
+}
+
+.forest-tree:hover .tree-art,
+.forest-tree:focus-visible .tree-art {
+  transform: scale(1.06);
+}
+
+.tree-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* 扁平几何树：平涂松冠（主色）+ 单侧明暗（dark），简洁树干 */
+.tree-trunk {
+  fill: color-mix(in srgb, var(--chapter-dark) 70%, #8a6a4a);
+}
+
+.tree-shadow {
+  fill: rgba(15, 23, 42, 0.08);
+}
+
+/* 默认（未走到）：浅淡、还没「长成」的清爽态 */
+.tree-crown {
+  fill: color-mix(in srgb, var(--chapter-accent) 40%, #ffffff);
+}
+
+.tree-shade {
+  fill: color-mix(in srgb, var(--chapter-accent) 62%, #ffffff);
+}
+
+.forest-tree:not(.is-visited) .tree-trunk {
+  fill: #b6a08c;
+}
+
+/* 已走到 / 长成：饱满的双色平涂（accent 主色 + dark 单侧明暗） */
+.forest-tree.is-visited .tree-crown {
+  fill: var(--chapter-accent);
+}
+
+.forest-tree.is-visited .tree-shade {
+  fill: color-mix(in srgb, var(--chapter-dark) 88%, var(--chapter-accent));
+}
+
+.forest-tree.is-current .tree-art {
+  filter: drop-shadow(0 0 0 color-mix(in srgb, var(--chapter-accent) 60%, transparent))
+    drop-shadow(0 10px 16px color-mix(in srgb, var(--chapter-accent) 36%, transparent));
+}
+
+.tree-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--chapter-accent) 16%, #ffffff);
+  color: color-mix(in srgb, var(--chapter-accent) 82%, #0f172a);
+  font-size: clamp(0.52rem, 1.85cqw, 0.7rem);
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+}
+
+.tree-label {
+  max-width: 12ch;
+  color: #1f2a37;
+  font-size: clamp(0.62rem, 2.2cqw, 0.84rem);
+  font-weight: 800;
+  line-height: 1.2;
+  text-align: center;
+  text-wrap: balance;
+}
+
+.tree-here {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: color-mix(in srgb, var(--chapter-accent) 80%, #0f172a);
+  font-size: 0.68rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+/* 悬停 / 聚焦预览卡：浮出更多章节信息，不长期占屏 */
+.tree-card {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  z-index: 5;
+  display: grid;
+  gap: 3px;
+  width: 208px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--chapter-accent) 26%, rgba(15, 23, 42, 0.12));
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.16);
+  opacity: 0;
+  transform: translate(-50%, 6px);
+  pointer-events: none;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.forest-tree:hover .tree-card,
+.forest-tree:focus-visible .tree-card,
+.forest-tree:focus-within .tree-card {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.tree-card-title {
+  color: #0f172a;
+  font-size: 0.92rem;
+  font-weight: 850;
+}
+
+.tree-card-subtitle {
+  color: color-mix(in srgb, var(--chapter-accent) 70%, #0f172a);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.tree-card-desc {
+  color: #64748b;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.tree-card-count {
+  margin-top: 2px;
+  color: #94a3b8;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+/* 窄屏 / 移动端：整幅俯览地图以 cqw 等比缩小，保持蛇形匀称、可读、不拥挤；
+   仅收窄预览卡，避免在小屏上过宽。 */
+@media (max-width: 620px) {
+  .tree-card {
+    width: 168px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .forest-tree,
+  .tree-art,
+  .tree-card {
+    transition: none;
+  }
+}
