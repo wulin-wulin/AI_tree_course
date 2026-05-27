@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import AnimationBlock from './AnimationBlock';
 import DiagramBlock from './DiagramBlock';
 import type { KnowledgeCluster, KnowledgePoint } from '../data/courseKnowledge';
@@ -13,9 +13,7 @@ type KnowledgeDetailPanelProps = {
   next: AdjacentPoint;
   positionInCluster: number;
   clusterTotal: number;
-  isReading: boolean;
   onSelect: (id: string) => void;
-  onToggleReading: () => void;
 };
 
 function KnowledgeDetailPanel({
@@ -25,9 +23,7 @@ function KnowledgeDetailPanel({
   next,
   positionInCluster,
   clusterTotal,
-  isReading,
   onSelect,
-  onToggleReading,
 }: KnowledgeDetailPanelProps) {
   const expressionTags = [
     point.formula ? '公式' : null,
@@ -67,15 +63,6 @@ function KnowledgeDetailPanel({
             <ChevronRight size={16} aria-hidden="true" />
           </button>
         </div>
-        <button
-          type="button"
-          className="reading-toggle"
-          onClick={onToggleReading}
-          aria-pressed={isReading}
-        >
-          {isReading ? <PanelLeftOpen size={15} aria-hidden="true" /> : <PanelLeftClose size={15} aria-hidden="true" />}
-          <span>{isReading ? '显示目录' : '专注阅读'}</span>
-        </button>
       </nav>
 
       <header className="reading-head">
