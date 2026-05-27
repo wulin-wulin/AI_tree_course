@@ -7,11 +7,13 @@
 1. `docs/requirements/README.md`
 2. `docs/requirements/AGENT_PROTOCOL.md`
 3. `docs/requirements/current_state.md`
-4. `docs/requirements/rounds/R001_initial_experience_feedback.md`
+4. `docs/requirements/rounds/R002_experience_maturity.md`
 
 ## 当前执行轮次
 
-`R001`
+暂无可执行轮次（R003 待需求讨论窗口拟定）。
+
+> R001、R002 均已 `Accepted` 关闭。R003 尚未创建，需求讨论窗口确认并置 `Ready` 后再更新本节指向。执行智能体在没有 `Ready` 轮次时不应实现任何内容。
 
 ## 执行规则
 
