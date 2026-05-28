@@ -7,13 +7,13 @@
 1. `docs/requirements/README.md`
 2. `docs/requirements/AGENT_PROTOCOL.md`
 3. `docs/requirements/current_state.md`
-4. `docs/requirements/rounds/R007_forest_map_serpentine.md`
+4. `docs/requirements/rounds/R009_fix_multi_preview_card_bug.md`
 
 ## 当前执行轮次
 
-`R007`（状态：`Ready`，**可实现**）
+`R009`（状态：`Ready`，**可实现**）
 
-> R001–R003 已 `Accepted`。R004–R006 均 `Reviewed`、未提交（森林地图的结构/树 icon/宽幅风景已被认可保留）。R007 只改**排布**：把 8 个章节节点改为**蛇形折返多行铺排**（第 1 行左→右、行末弯曲下行、第 2 行右→左……逐行蛇形走完 8 个），整幅**匀称、不太宽不太长、间距均匀**；保留 R005 树 icon 与 R006 艺术质感、不改结构/路由/数据/已有功能。验收以需求讨论窗口主观评审为准。
+> R001–R008 已 `Accepted`。R008 留下一个 bug：章节地图页 `/ai` 可能同时显示两张悬浮预览小卡（点击树 → 关方框后焦点回到树并保持其 `:focus` 触发的预览卡 + 再悬停另一棵树）。R009 专修这个 bug：让任意时刻最多只显示一张预览卡（推荐把触发选择器从 `:focus` 改为 `:focus-visible` + 方框打开期间隐藏全部预览卡），保留键盘可达性，不破坏 R008 其他功能。验收以需求讨论窗口主观评审 + 复现路径验证为准。
 
 ## 实现完成后请自检视觉（UI 改动适用）
 

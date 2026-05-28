@@ -1,7 +1,9 @@
-import { useMemo, type CSSProperties } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { ChevronLeft, MapPin } from 'lucide-react';
-import { chapters, chapterPoints, findPoint, firstPointOf, pointPath, readLastPoint } from '../data/courseNav';
+import { knowledgePoints } from '../data/courseKnowledge';
+import { chapters, chapterPoints, findPoint, pointPath, readLastPoint } from '../data/courseNav';
+import ChapterPreviewDialog from './ChapterPreviewDialog';
 
 // 俯览式地图画布，接近均衡比例（不太宽不太长）。所有坐标基于该 viewBox。
 const SCENE = { w: 1000, h: 700 } as const;
@@ -55,6 +57,7 @@ function buildTrail(points: readonly Point[]): string {
 }
 
 function ChapterMapPage() {
+  const navigate = useNavigate();
   const trail = useMemo(() => buildTrail(NODES), []);
 
   const counts = useMemo(() => chapters.map((chapter) => chapterPoints(chapter.id).length), []);
@@ -67,6 +70,65 @@ function ChapterMapPage() {
     const clusterId = last ? findPoint(last)?.clusterId : undefined;
     return clusterId ? chapters.findIndex((chapter) => chapter.id === clusterId) : -1;
   }, []);
+
+  // 点击章节树 → 弹出本章预览方框（不再直接跳首点）；记住触发树，关闭时焦点回到该树。
+  const [openChapterId, setOpenChapterId] = useState<string | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+
+  // 同一时刻最多一张悬浮预览卡；由 JS 状态统一驱动（取代原来的 :hover / :focus-visible CSS 触发）。
+  const [previewedChapterId, setPreviewedChapterId] = useState<string | null>(null);
+  // 关闭方框后，焦点会被程序化还回触发树；如果 ESC 关闭，浏览器处于「键盘交互」模式，
+  // 此时 onFocus 会被触发——用一个短暂的标志位抑制这次自动焦点带来的预览，避免 bug 残留。
+  const suppressFocusPreviewRef = useRef(false);
+
+  const handleTreeClick = useCallback((chapterId: string, button: HTMLButtonElement) => {
+    triggerRef.current = button;
+    setPreviewedChapterId(null);
+    setOpenChapterId((current) => (current === chapterId ? null : chapterId));
+  }, []);
+
+  const closeDialog = useCallback(() => {
+    setOpenChapterId(null);
+    setPreviewedChapterId(null);
+    suppressFocusPreviewRef.current = true;
+    requestAnimationFrame(() => {
+      triggerRef.current?.focus();
+      // 下一个事件循环再放开标志，让后续真实的键盘 Tab 聚焦仍能正常显示预览卡。
+      setTimeout(() => {
+        suppressFocusPreviewRef.current = false;
+      }, 60);
+    });
+  }, []);
+
+  const handlePreviewEnter = useCallback((chapterId: string) => {
+    setPreviewedChapterId(chapterId);
+  }, []);
+
+  const handlePreviewLeave = useCallback((chapterId: string) => {
+    setPreviewedChapterId((current) => (current === chapterId ? null : current));
+  }, []);
+
+  const handleTreeFocus = useCallback((chapterId: string) => {
+    if (suppressFocusPreviewRef.current) return;
+    setPreviewedChapterId(chapterId);
+  }, []);
+
+  const handleSelectPoint = useCallback(
+    (pointId: string) => {
+      const target = findPoint(pointId);
+      if (!target) return;
+      setOpenChapterId(null);
+      navigate(pointPath(target));
+    },
+    [navigate],
+  );
+
+  const openChapter = openChapterId ? chapters.find((c) => c.id === openChapterId) : undefined;
+  const openChapterIndex = openChapter ? chapters.findIndex((c) => c.id === openChapter.id) : -1;
+  const openChapterPoints = useMemo(
+    () => (openChapter ? knowledgePoints.filter((p) => p.clusterId === openChapter.id) : []),
+    [openChapter],
+  );
 
   return (
     <main id="main-content" className="page chapter-page forest-map-page" aria-label="人工智能原理章节学习路径">
@@ -83,7 +145,7 @@ function ChapterMapPage() {
       </header>
 
       <div className="forest-scene-wrap">
-        <div className="forest-scene">
+        <div className={`forest-scene ${openChapterId ? 'dialog-open' : ''}`}>
           <svg
             className="forest-backdrop"
             viewBox={`0 0 ${SCENE.w} ${SCENE.h}`}
@@ -131,13 +193,14 @@ function ChapterMapPage() {
             {chapters.map((chapter, index) => {
               const count = counts[index];
               const node = NODES[index];
-              const first = firstPointOf(chapter.id);
               const ratio = maxCount > minCount ? (count - minCount) / (maxCount - minCount) : 0.5;
               // 以 cqw（场景宽度的百分比）为单位，让整幅地图随宽度等比缩放（桌面/移动统一）；
               // 知识点越多树越繁茂，但保持在统一风格语言内的微调。
               const treeSize = 7.2 + ratio * 2.6;
               const isCurrent = index === lastChapterIndex;
               const isVisited = lastChapterIndex >= 0 && index <= lastChapterIndex;
+              const isOpen = openChapterId === chapter.id;
+              const isPreviewed = previewedChapterId === chapter.id;
 
               return (
                 <li
@@ -145,46 +208,64 @@ function ChapterMapPage() {
                   className="forest-tree-slot"
                   style={{ left: `${(node.x / SCENE.w) * 100}%`, top: `${(node.y / SCENE.h) * 100}%` } as CSSProperties}
                 >
-                <Link
-                  className={`forest-tree ${isVisited ? 'is-visited' : ''} ${isCurrent ? 'is-current' : ''}`}
-                  to={first ? pointPath(first) : '/ai'}
-                  aria-label={`第 ${index + 1} 章 ${chapter.title}，${count} 个知识点，进入阅读`}
-                  style={
-                    {
-                      '--chapter-accent': chapter.accent,
-                      '--chapter-soft': chapter.soft,
-                      '--chapter-dark': chapter.dark,
-                      '--tree-size': `${treeSize.toFixed(2)}cqw`,
-                    } as CSSProperties
-                  }
-                >
-                  <span className="tree-art" aria-hidden="true">
-                    <TreeArt lush={ratio} />
-                  </span>
-                  <span className="tree-index" aria-hidden="true">
-                    {String(index + 1).padStart(2, '0')}
-                  </span>
-                  <span className="tree-label">{chapter.title}</span>
-                  {isCurrent ? (
-                    <span className="tree-here">
-                      <MapPin size={12} aria-hidden="true" />
-                      上次读到这里
+                  <button
+                    type="button"
+                    className={`forest-tree ${isVisited ? 'is-visited' : ''} ${isCurrent ? 'is-current' : ''} ${isOpen ? 'is-open' : ''} ${isPreviewed ? 'is-previewed' : ''}`}
+                    aria-label={`第 ${index + 1} 章 ${chapter.title}，${count} 个知识点，查看本章预览`}
+                    aria-haspopup="dialog"
+                    aria-expanded={isOpen}
+                    onClick={(event) => handleTreeClick(chapter.id, event.currentTarget)}
+                    onPointerEnter={() => handlePreviewEnter(chapter.id)}
+                    onPointerLeave={() => handlePreviewLeave(chapter.id)}
+                    onFocus={() => handleTreeFocus(chapter.id)}
+                    onBlur={() => handlePreviewLeave(chapter.id)}
+                    style={
+                      {
+                        '--chapter-accent': chapter.accent,
+                        '--chapter-soft': chapter.soft,
+                        '--chapter-dark': chapter.dark,
+                        '--tree-size': `${treeSize.toFixed(2)}cqw`,
+                      } as CSSProperties
+                    }
+                  >
+                    <span className="tree-art" aria-hidden="true">
+                      <TreeArt lush={ratio} />
                     </span>
-                  ) : null}
+                    <span className="tree-index" aria-hidden="true">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                    <span className="tree-label">{chapter.title}</span>
+                    {isCurrent ? (
+                      <span className="tree-here">
+                        <MapPin size={12} aria-hidden="true" />
+                        上次读到这里
+                      </span>
+                    ) : null}
 
-                  <span className="tree-card" role="presentation">
-                    <span className="tree-card-title">{chapter.title}</span>
-                    <span className="tree-card-subtitle">{chapter.subtitle}</span>
-                    <span className="tree-card-desc">{chapter.description}</span>
-                    <span className="tree-card-count">{count} 个知识点</span>
-                  </span>
-                </Link>
-              </li>
+                    <span className="tree-card" role="presentation">
+                      <span className="tree-card-title">{chapter.title}</span>
+                      <span className="tree-card-subtitle">{chapter.subtitle}</span>
+                      <span className="tree-card-desc">{chapter.description}</span>
+                      <span className="tree-card-count">{count} 个知识点</span>
+                    </span>
+                  </button>
+                </li>
               );
             })}
           </ol>
         </div>
       </div>
+
+      {openChapter ? (
+        <ChapterPreviewDialog
+          key={openChapter.id}
+          chapter={openChapter}
+          chapterIndex={openChapterIndex + 1}
+          points={openChapterPoints}
+          onClose={closeDialog}
+          onSelectPoint={handleSelectPoint}
+        />
+      ) : null}
     </main>
   );
 }
