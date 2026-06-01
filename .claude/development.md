@@ -1,6 +1,6 @@
 # Development Guidelines
 
-本文件保存项目的详细开发规范。根目录 `AGENT.md` 是长期记忆入口；本文件是给执行智能体展开阅读的辅助规范。
+本文件保存项目的详细开发规范。根目录 `CLAUDE.md` 是长期记忆入口；本文件是给执行智能体展开阅读的辅助规范。
 
 ## 项目结构
 
@@ -57,7 +57,7 @@ npm run visual:review
 - `npm run dev`：启动 Vite 开发服务。
 - `npm run build`：执行 `tsc -b && vite build`，是当前优先验证命令。
 - `npm run preview`：预览生产构建。
-- `npm run visual:review`：使用 Playwright 截取桌面和移动端页面截图，输出到 `.agents/artifacts/screenshots/`。
+- `npm run visual:review`：使用 Playwright 截取桌面和移动端页面截图，输出到 `.claude/artifacts/screenshots/`。
 - 构建产物输出到 `dist/`。
 
 ## 需求执行流程
@@ -98,7 +98,7 @@ npm run visual:review
 - 组件职责保持清晰：状态编排放入口层，展示逻辑放组件层。
 - 涉及样式调整时，优先复用现有 class 命名和视觉系统。
 - 修改用户可见文案时，必须站在学习者视角，不暴露内部开发流程概念。
-- Git 提交信息遵循 `.agents/git.md` 中的 Conventional Commits 规范。
+- Git 提交信息遵循 `.claude/git.md` 中的 Conventional Commits 规范。
 
 ## 产品注意事项
 
@@ -119,5 +119,5 @@ npm run visual:review
   - 点击知识点。
   - 右侧详情内容同步更新。
   - 动画和图示正常展示。
-- 视觉样式改动后，建议运行 `npm run visual:review`，根据 `.agents/artifacts/screenshots/desktop.png` 和 `mobile.png` 继续调整。
+- 视觉样式改动后，建议运行 `npm run visual:review`，根据 `.claude/artifacts/screenshots/desktop.png` 和 `mobile.png` 继续调整。
 - 如果无法运行验证命令，应在最终回复和执行反馈中说明原因。

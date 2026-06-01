@@ -179,7 +179,7 @@ R002 把单个知识点重构为聚焦阅读页，验收通过。但项目整体
 ### 验证结果
 
 - `npm run build`（经 `npm.cmd`）通过：`tsc -b && vite build` 成功，1586 模块，无类型错误，产物输出 `dist/`。
-- 视觉佐证：以 Playwright 截取三级页面（桌面 + 移动）共 6 张，写入 `.agents/artifacts/screenshots/r003-{home,chapters,reading}-{desktop,mobile}.png`，运行期无浏览器/控制台报错。逐张确认：首页书架与禁用占位、章节线性路径顺序、阅读页复用 R002 排版、悬浮列表不遮挡正文（桌面预留列、移动端上方收纳条）。
+- 视觉佐证：以 Playwright 截取三级页面（桌面 + 移动）共 6 张，写入 `.claude/artifacts/screenshots/r003-{home,chapters,reading}-{desktop,mobile}.png`，运行期无浏览器/控制台报错。逐张确认：首页书架与禁用占位、章节线性路径顺序、阅读页复用 R002 排版、悬浮列表不遮挡正文（桌面预留列、移动端上方收纳条）。
 - 手动核对路由：`/` → `/ai` → `/ai/:chapter/:point` 三级可直达；`/ai/:chapter` 重定向到首个知识点；按 R002 序列推进可跨章。
 - 说明：默认 `npm run visual:review` 仅截取 `/`（现为首页），故改用上述三级截图作为更完整的佐证；该脚本默认自启用 `npm`，受本机 PATH 限制需先手动起 dev 服务（已沿用前轮做法）。
 

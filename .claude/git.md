@@ -37,7 +37,7 @@ refactor(data): 规范课程知识字段
 
 scope 使用小写短词，优先表达变更影响范围：
 
-- `agent`：智能体长期记忆或 `.agents/` 规范。
+- `agent`：智能体长期记忆或 `.claude/` 规范。
 - `docs`：项目文档。
 - `requirements`：需求流程文档。
 - `atlas`：知识地图和知识簇导航。

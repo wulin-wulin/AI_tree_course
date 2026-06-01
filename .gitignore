@@ -146,4 +146,7 @@ pnpm-lock.yaml
 yarn.lock
 
 # Agent-generated review artifacts
-.agents/artifacts/
+.claude/artifacts/
+
+# Superpowers brainstorming mockups
+.superpowers/

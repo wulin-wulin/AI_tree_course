@@ -6,7 +6,7 @@ import { chromium } from '@playwright/test';
 const rootDir = process.cwd();
 const port = Number(process.env.UI_REVIEW_PORT ?? 5173);
 const baseUrl = process.env.UI_REVIEW_URL ?? `http://127.0.0.1:${port}/`;
-const outputDir = path.join(rootDir, '.agents', 'artifacts', 'screenshots');
+const outputDir = path.join(rootDir, '.claude', 'artifacts', 'screenshots');
 const viewports = [
   { name: 'desktop', width: 1440, height: 1000 },
   { name: 'mobile', width: 390, height: 844 },

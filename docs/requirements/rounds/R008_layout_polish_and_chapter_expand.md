@@ -175,9 +175,9 @@ R008 集中处理这三件事。
 
 - `npm run build`（经 `npm.cmd`）通过：`tsc -b && vite build` 成功，1587 模块，无类型错误，产物输出 `dist/`。
 - 自检视觉：Playwright 截取并逐张核对——
-  - `.agents/artifacts/screenshots/r008-home-desktop.png` / `r008-home-mobile.png`：桌面 4 卡一字排开、卡片明显更大、整页背景到底无白块、垂直居中比例协调；移动端自然回流为 1 列。
-  - `.agents/artifacts/screenshots/r008-map-desktop.png` / `r008-map-mobile.png`：绿色森林地图卡撑满主视野、R007 蛇形/树/配色/林口林深处/进度/悬停卡仍在。
-  - `.agents/artifacts/screenshots/r008-dialog-deep.png`（第 5 章 神经网络与深度学习，8 个知识点）/ `r008-dialog-intro.png`（第 1 章 导论与历史，5 个知识点）/ `r008-dialog-mobile.png`（第 4 章 机器学习基础，6 个知识点）：方框中央章节卡 + 四周椭圆环绕该章全部知识点小卡 + 每张小卡到中心一条虚线连接；5/6/8 个数量都匀称、不挤不裁；难度小标与序号正常；移动端紧凑可读。
+  - `.claude/artifacts/screenshots/r008-home-desktop.png` / `r008-home-mobile.png`：桌面 4 卡一字排开、卡片明显更大、整页背景到底无白块、垂直居中比例协调；移动端自然回流为 1 列。
+  - `.claude/artifacts/screenshots/r008-map-desktop.png` / `r008-map-mobile.png`：绿色森林地图卡撑满主视野、R007 蛇形/树/配色/林口林深处/进度/悬停卡仍在。
+  - `.claude/artifacts/screenshots/r008-dialog-deep.png`（第 5 章 神经网络与深度学习，8 个知识点）/ `r008-dialog-intro.png`（第 1 章 导论与历史，5 个知识点）/ `r008-dialog-mobile.png`（第 4 章 机器学习基础，6 个知识点）：方框中央章节卡 + 四周椭圆环绕该章全部知识点小卡 + 每张小卡到中心一条虚线连接；5/6/8 个数量都匀称、不挤不裁；难度小标与序号正常；移动端紧凑可读。
   - 运行期无浏览器/控制台报错。
 - 手动核对：点击知识点小卡 → 路由跳转到 `/ai/:chapterId/:pointId` 正确；点击中央卡 → 跳转该章首点；点击另一棵树 → 方框切换；点击方框外背景 / ESC / X → 方框关闭；关闭后焦点回到刚才那棵树。
 

@@ -121,7 +121,7 @@ R003 完成三级导航重构后，结构清晰、简洁，但人类用户反馈
 ### 验证结果
 
 - `npm run build`（经 `npm.cmd`）通过：`tsc -b && vite build` 成功，1586 模块，无类型错误，产物输出 `dist/`。
-- 视觉佐证：Playwright 截取 `.agents/artifacts/screenshots/r004-forest-{desktop,hover,mobile}.png`，运行期无浏览器/控制台报错。逐张确认：小径从林口蜿蜒到林深处串起 8 棵配色各异的树、序号 01–08 与顺序清晰、树冠大小随知识点数变化、悬停预览卡浮出章节信息、桌面与移动端均有序不拥挤。
+- 视觉佐证：Playwright 截取 `.claude/artifacts/screenshots/r004-forest-{desktop,hover,mobile}.png`，运行期无浏览器/控制台报错。逐张确认：小径从林口蜿蜒到林深处串起 8 棵配色各异的树、序号 01–08 与顺序清晰、树冠大小随知识点数变化、悬停预览卡浮出章节信息、桌面与移动端均有序不拥挤。
 - 手动核对：点击/聚焦树进入对应章节首个知识点，路由与 R003 一致。
 
 ## 审核记录

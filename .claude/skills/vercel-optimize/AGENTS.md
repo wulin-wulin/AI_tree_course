@@ -35,14 +35,14 @@ npx skills add vercel-labs/agent-skills --skill vercel-optimize
 Manual project install:
 
 ```bash
-mkdir -p .agents/skills
-cp -R <agent-skills-repo>/skills/vercel-optimize .agents/skills/
+mkdir -p .claude/skills
+cp -R <agent-skills-repo>/skills/vercel-optimize .claude/skills/
 ```
 
 Then add this to the project `AGENTS.md`:
 
 ```md
 When optimizing Vercel cost or performance, follow
-`.agents/skills/vercel-optimize/SKILL.md` before proposing changes.
+`.claude/skills/vercel-optimize/SKILL.md` before proposing changes.
 Collect Vercel metrics before reading source files.
 ```

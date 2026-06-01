@@ -19,13 +19,13 @@ npm run visual:review
 1. 检查 `http://127.0.0.1:5173/` 是否可访问。
 2. 如果不可访问，自动启动 `npm run dev -- --port 5173`。
 3. 使用 Playwright Chromium 截取桌面图和移动图。
-4. 输出截图到 `.agents/artifacts/screenshots/`。
+4. 输出截图到 `.claude/artifacts/screenshots/`。
 5. 如果浏览器 console 有错误，以非零状态退出。
 
 ## 输出文件
 
 ```text
-.agents/artifacts/screenshots/
+.claude/artifacts/screenshots/
   desktop.png
   mobile.png
 ```
