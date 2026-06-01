@@ -2983,276 +2983,6 @@ a.course-card.is-open:focus-visible {
 
 /* ===== R004–R007 · 章节导览：蛇形折返多行的俯览森林地图 ===== */
 
-.forest-map-page {
-  width: min(900px, 100%);
-  margin: 0 auto;
-}
-
-.forest-scene-wrap {
-  margin-top: 14px;
-}
-
-.forest-scene {
-  position: relative;
-  width: min(760px, 100%);
-  margin: 0 auto;
-  /* 近均衡比例：viewBox 1000 x 700 ≈ 1.43:1，不太宽也不太长 */
-  aspect-ratio: 1000 / 700;
-  /* 作为 container：树与文字用 cqw 单位随整幅宽度等比缩放（桌面/移动统一匀称） */
-  container-type: inline-size;
-}
-
-.forest-backdrop {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border: 1px solid rgba(15, 23, 42, 0.07);
-  border-radius: 20px;
-  /* 圆角裁剪底景，树与预览卡仍可溢出画框外 */
-  overflow: hidden;
-  box-shadow: var(--shadow-soft);
-}
-
-/* 俯览地图扁平底景：平涂、柔和、退后，确保章节树 accent 仍是焦点 */
-.scene-glade {
-  fill: #eef5e6;
-  opacity: 0.6;
-}
-
-.scene-glade.soft {
-  fill: #f3f8ec;
-  opacity: 0.5;
-}
-
-.scene-bg-tree {
-  fill: #b8d2be;
-  opacity: 0.7;
-}
-
-.trail-band {
-  fill: none;
-  stroke: #ece1cd;
-  stroke-width: 11;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.trail-dash {
-  fill: none;
-  stroke: #c8b693;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-dasharray: 3 10;
-}
-
-.trail-mark {
-  fill: #8a9f95;
-  font-size: 21px;
-  font-weight: 800;
-  text-anchor: middle;
-}
-
-.forest-trees {
-  position: absolute;
-  inset: 0;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* 树站在小径上：以底边对齐节点，向上生长 */
-.forest-tree-slot {
-  position: absolute;
-  transform: translate(-50%, -100%);
-}
-
-.forest-tree {
-  position: relative;
-  display: grid;
-  justify-items: center;
-  gap: 3px;
-  padding: 6px 8px 8px;
-  border-radius: 14px;
-  text-decoration: none;
-  transition: transform 180ms ease;
-}
-
-.forest-tree:hover,
-.forest-tree:focus-visible {
-  transform: translateY(-4px);
-}
-
-.forest-tree:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--chapter-accent) 40%, transparent);
-  outline-offset: 2px;
-}
-
-.tree-art {
-  display: block;
-  width: var(--tree-size, 56px);
-  filter: drop-shadow(0 8px 12px color-mix(in srgb, var(--chapter-accent) 22%, transparent));
-  transition: transform 200ms ease;
-}
-
-.forest-tree:hover .tree-art,
-.forest-tree:focus-visible .tree-art {
-  transform: scale(1.06);
-}
-
-.tree-svg {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-
-/* 扁平几何树：平涂松冠（主色）+ 单侧明暗（dark），简洁树干 */
-.tree-trunk {
-  fill: color-mix(in srgb, var(--chapter-dark) 70%, #8a6a4a);
-}
-
-.tree-shadow {
-  fill: rgba(15, 23, 42, 0.08);
-}
-
-/* 默认（未走到）：浅淡、还没「长成」的清爽态 */
-.tree-crown {
-  fill: color-mix(in srgb, var(--chapter-accent) 40%, #ffffff);
-}
-
-.tree-shade {
-  fill: color-mix(in srgb, var(--chapter-accent) 62%, #ffffff);
-}
-
-.forest-tree:not(.is-visited) .tree-trunk {
-  fill: #b6a08c;
-}
-
-/* 已走到 / 长成：饱满的双色平涂（accent 主色 + dark 单侧明暗） */
-.forest-tree.is-visited .tree-crown {
-  fill: var(--chapter-accent);
-}
-
-.forest-tree.is-visited .tree-shade {
-  fill: color-mix(in srgb, var(--chapter-dark) 88%, var(--chapter-accent));
-}
-
-.forest-tree.is-current .tree-art {
-  filter: drop-shadow(0 0 0 color-mix(in srgb, var(--chapter-accent) 60%, transparent))
-    drop-shadow(0 10px 16px color-mix(in srgb, var(--chapter-accent) 36%, transparent));
-}
-
-.tree-index {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 22px;
-  height: 18px;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--chapter-accent) 16%, #ffffff);
-  color: color-mix(in srgb, var(--chapter-accent) 82%, #0f172a);
-  font-size: clamp(0.52rem, 1.85cqw, 0.7rem);
-  font-weight: 850;
-  font-variant-numeric: tabular-nums;
-}
-
-.tree-label {
-  max-width: 12ch;
-  color: #1f2a37;
-  font-size: clamp(0.62rem, 2.2cqw, 0.84rem);
-  font-weight: 800;
-  line-height: 1.2;
-  text-align: center;
-  text-wrap: balance;
-}
-
-.tree-here {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  color: color-mix(in srgb, var(--chapter-accent) 80%, #0f172a);
-  font-size: 0.68rem;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-/* 悬停 / 聚焦预览卡：浮出更多章节信息，不长期占屏 */
-.tree-card {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 50%;
-  z-index: 5;
-  display: grid;
-  gap: 3px;
-  width: 208px;
-  padding: 12px 14px;
-  border: 1px solid color-mix(in srgb, var(--chapter-accent) 26%, rgba(15, 23, 42, 0.12));
-  border-radius: 12px;
-  background: #ffffff;
-  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.16);
-  opacity: 0;
-  transform: translate(-50%, 6px);
-  pointer-events: none;
-  transition: opacity 160ms ease, transform 160ms ease;
-}
-
-/* 预览卡的显示统一由 JS 维护的 .is-previewed 类驱动（同一时刻最多一张）；
-   不再用 :hover / :focus-visible 直接触发，避免 ESC 关闭方框后焦点回到树时
-   :focus-visible 仍生效导致旧卡残留、与新悬停的卡叠加显示。 */
-.forest-tree.is-previewed .tree-card {
-  opacity: 1;
-  transform: translate(-50%, 0);
-}
-
-/* 方框打开期间，地图上的悬浮预览卡一律隐藏，避免与方框叠加视觉干扰 */
-.forest-scene.dialog-open .tree-card {
-  opacity: 0 !important;
-  visibility: hidden;
-  pointer-events: none;
-}
-
-.tree-card-title {
-  color: #0f172a;
-  font-size: 0.92rem;
-  font-weight: 850;
-}
-
-.tree-card-subtitle {
-  color: color-mix(in srgb, var(--chapter-accent) 70%, #0f172a);
-  font-size: 0.78rem;
-  font-weight: 700;
-}
-
-.tree-card-desc {
-  color: #64748b;
-  font-size: 0.78rem;
-  line-height: 1.5;
-}
-
-.tree-card-count {
-  margin-top: 2px;
-  color: #94a3b8;
-  font-size: 0.74rem;
-  font-weight: 700;
-}
-
-/* 窄屏 / 移动端：整幅俯览地图以 cqw 等比缩小，保持蛇形匀称、可读、不拥挤；
-   仅收窄预览卡，避免在小屏上过宽。 */
-@media (max-width: 620px) {
-  .tree-card {
-    width: 168px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .forest-tree,
-  .tree-art,
-  .tree-card {
-    transition: none;
-  }
-}
-
 /* ===== R008 · 首页/地图版面打磨 + 章节预览方框 ===== */
 
 /* 让 body 至少撑满视口，避免内容偏短时页底出现不协调的白块 */
@@ -3329,297 +3059,415 @@ a.course-card.is-open:focus-visible {
   }
 }
 
-/* ---------- B. 章节地图页：撑满，少留空白 ---------- */
-.forest-map-page {
-  width: min(1180px, 100%);
+
+/* ===== R010 · 知识森林地图：沿途生长的徒步长卷 ===== */
+
+.forest-trail-page {
+  width: min(1200px, 100%);
+  margin: 0 auto; /* 在宽屏上整页居中 */
+  padding: 0 0 64px;
 }
 
-.chapter-page {
-  width: min(1180px, 100%);
-  padding: clamp(20px, 3.6vh, 32px) 0 36px;
-}
-
-.chapter-head {
-  margin-bottom: 22px;
-}
-
-.forest-scene-wrap {
-  margin-top: 6px;
-}
-
-.forest-scene {
-  width: min(1100px, 100%);
-}
-
-/* ---------- 章节树：从 <a> 改为 <button>，重置默认控件样式 ---------- */
-button.forest-tree {
-  background: transparent;
-  border: 0;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-}
-
-button.forest-tree.is-open {
-  transform: translateY(-3px);
-}
-
-button.forest-tree.is-open .tree-art {
-  filter: drop-shadow(0 0 0 color-mix(in srgb, var(--chapter-accent) 50%, transparent))
-    drop-shadow(0 12px 22px color-mix(in srgb, var(--chapter-accent) 36%, transparent));
-}
-
-/* ---------- C. 章节预览方框（弹层 + 中心章节 + 四周环绕 + 虚线） ---------- */
-.chapter-preview-shell {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  display: grid;
-  place-items: center;
-  pointer-events: none;
-  animation: dialogShellIn 200ms ease both;
-}
-
-.chapter-preview-scrim {
-  position: absolute;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.18);
-  backdrop-filter: blur(2px);
-  /* scrim 仅作视觉遮罩；点击穿透到下层（trees 仍可切换，其余位置由 document 监听判定关闭） */
-  pointer-events: none;
-}
-
-.chapter-preview {
-  position: relative;
-  pointer-events: auto;
-  width: min(720px, 92vw);
-  height: min(540px, 86vh);
-  padding: 18px;
-  border-radius: 22px;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  border-top: 6px solid var(--chapter-accent);
-  background: #ffffff;
-  box-shadow: 0 30px 70px rgba(15, 23, 42, 0.22);
-  animation: dialogIn 220ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
-}
-
-@keyframes dialogShellIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes dialogIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-.chapter-preview-close {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  z-index: 3;
-  display: inline-flex;
+/* 顶部纤细常驻栏 */
+.trail-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
   align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  border-radius: 9px;
-  background: #ffffff;
-  color: #64748b;
-  cursor: pointer;
-  transition: border-color 150ms ease, color 150ms ease;
+  gap: 14px;
+  padding: 10px clamp(12px, 3vw, 26px);
+  background: color-mix(in srgb, #eef4e6 80%, #ffffff);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.07);
 }
 
-.chapter-preview-close:hover,
-.chapter-preview-close:focus-visible {
-  border-color: rgba(15, 23, 42, 0.24);
-  color: #0f172a;
+.trail-topbar .back-link {
+  margin: 0;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
-.chapter-lines {
+.trail-topbar-title {
+  margin: 0;
+  font-size: 0.96rem;
+  font-weight: 850;
+  color: #1f2a37;
+  white-space: nowrap;
+}
+
+.trail-progress {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.trail-progress-text {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #5b7a72;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.trail-progress-bar {
+  position: relative;
+  width: clamp(64px, 16vw, 156px);
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.09);
+  overflow: hidden;
+}
+
+.trail-progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #2f9e7e, #84a51d);
+  transition: width 400ms ease;
+}
+
+.trail-head {
+  width: min(760px, 92%);
+  margin: 20px auto 6px;
+  text-align: center;
+}
+
+.trail-head .chapter-sub {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* 长卷场景 */
+.forest-trail-wrap {
+  width: min(1200px, 100%);
+  margin: 10px auto 0;
+  padding: 0 clamp(8px, 2vw, 20px);
+}
+
+.forest-trail-scene {
+  position: relative;
+  width: 100%;
+  border-radius: 22px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: var(--shadow-soft);
+  /* 圆角裁剪底景，但允许节点 / 预览卡溢出，不被裁切 */
+  overflow: visible;
+  background: linear-gradient(180deg, #eef5e6, #e3eed7);
+}
+
+.trail-backdrop {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  pointer-events: none;
-  overflow: visible;
+  display: block;
 }
 
-.chapter-lines line {
-  stroke: color-mix(in srgb, var(--chapter-accent) 28%, rgba(15, 23, 42, 0.28));
-  stroke-width: 1.3;
-  stroke-dasharray: 5 6;
+.trail-meadow {
+  fill: transparent;
+}
+
+.trail-deco-tree {
+  opacity: 0.5;
+}
+
+.trail-deco-tree > polygon {
+  fill: #b6d1bd;
+}
+
+.trail-deco-tree > rect {
+  fill: #9bb196;
+}
+
+/* 小路：底层土色边带 + 各章分段染色覆盖（不透明 + 平头对接，边界不重叠不变深）+ 浅色中线虚线 */
+.trail-band {
+  fill: none;
+  stroke: #e4d6b6;
+  stroke-width: 24;
   stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-.chapter-preview-core {
+.trail-seg {
+  fill: none;
+  stroke-width: 20;
+  stroke-linecap: butt;
+  stroke-linejoin: round;
+}
+
+.trail-dash {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.65);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-dasharray: 2 12;
+}
+
+.trail-mark {
+  fill: #7e9384;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+/* 节点层 */
+.forest-trail-nodes {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* slot 定位在树的「落地点」（树干根部 / 阴影中心）。阴影中心在 SVG 约 88% 高度处，
+   故按钮上移 88%，使阴影中心正好落在锚点上（树根贴路沿外侧、不压路面）。 */
+.trail-slot {
+  position: absolute;
+  transform: translate(-50%, -88%);
+}
+
+.trail-node {
+  position: relative;
+  display: block;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: transform 160ms ease;
+}
+
+.trail-node:hover,
+.trail-node:focus-visible {
+  transform: translateY(-3px);
+}
+
+.trail-node:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--chapter-accent) 42%, transparent);
+  outline-offset: 3px;
+  border-radius: 10px;
+}
+
+.node-art {
+  display: block;
+  width: var(--node-size, 36px);
+  filter: drop-shadow(0 6px 9px color-mix(in srgb, var(--chapter-accent) 22%, transparent));
+  transition: transform 180ms ease;
+}
+
+/* 标签（序号 + 标题 + 标记）绝对定位、一律朝「外」排：下侧树在树下方，上侧树在树上方 */
+.node-label {
   position: absolute;
   left: 50%;
-  top: 50%;
-  z-index: 2;
-  transform: translate(-50%, -50%);
-  display: grid;
-  justify-items: center;
-  gap: 4px;
-  width: min(230px, 60%);
-  padding: 16px 18px 14px;
-  border: 1px solid color-mix(in srgb, var(--chapter-accent) 28%, rgba(15, 23, 42, 0.1));
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--chapter-soft) 38%, #ffffff);
-  color: #0f172a;
-  text-align: center;
-  cursor: pointer;
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--chapter-accent) 18%, rgba(15, 23, 42, 0.12));
-  transition: transform 150ms ease, box-shadow 150ms ease;
+  top: calc(100% + 4px);
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: max-content;
+  max-width: 13ch;
+  pointer-events: none;
 }
 
-.chapter-preview-core:hover,
-.chapter-preview-core:focus-visible {
-  transform: translate(-50%, calc(-50% - 2px));
-  box-shadow: 0 14px 30px color-mix(in srgb, var(--chapter-accent) 26%, rgba(15, 23, 42, 0.16));
+.trail-node.node-above .node-label {
+  top: auto;
+  bottom: calc(100% + 4px);
 }
 
-.core-eyebrow {
-  color: color-mix(in srgb, var(--chapter-accent) 78%, #0f172a);
-  font-size: 0.74rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
+.trail-node:hover .node-art,
+.trail-node:focus-visible .node-art {
+  transform: scale(1.07);
 }
 
-.core-title {
-  margin: 2px 0 0;
-  color: #0f172a;
-  font-size: 1.16rem;
-  font-weight: 850;
-  text-wrap: balance;
+.tree-svg {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
-.core-subtitle {
-  color: #64748b;
-  font-size: 0.84rem;
-  font-weight: 600;
-  text-wrap: balance;
+/* 树形配色：未长成淡、已长成饱满 + 单侧明暗 */
+.tree-shadow {
+  fill: rgba(15, 23, 42, 0.08);
 }
 
-.core-cta {
-  margin-top: 8px;
-  color: color-mix(in srgb, var(--chapter-accent) 78%, #0f172a);
-  font-size: 0.82rem;
-  font-weight: 800;
+.tree-trunk {
+  fill: #b6a08c;
 }
 
-.chapter-preview-point {
-  position: absolute;
-  z-index: 2;
-  transform: translate(-50%, -50%);
-  display: grid;
-  grid-template-columns: auto 1fr;
-  grid-template-rows: auto auto;
-  column-gap: 8px;
-  width: min(140px, 30%);
-  padding: 9px 11px;
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  border-radius: 11px;
-  background: #ffffff;
-  color: #1e2a33;
-  cursor: pointer;
-  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
-  text-align: left;
-  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+.tree-crown {
+  fill: color-mix(in srgb, var(--chapter-accent) 34%, #ffffff);
 }
 
-.chapter-preview-point:hover,
-.chapter-preview-point:focus-visible {
-  border-color: color-mix(in srgb, var(--chapter-accent) 48%, rgba(15, 23, 42, 0.1));
-  box-shadow: 0 10px 22px color-mix(in srgb, var(--chapter-accent) 18%, rgba(15, 23, 42, 0.14));
-  transform: translate(-50%, calc(-50% - 2px));
+.tree-shade {
+  fill: color-mix(in srgb, var(--chapter-accent) 52%, #ffffff);
 }
 
-.ppt-index {
-  grid-row: 1 / span 2;
-  align-self: center;
+.trail-node.is-visited .tree-trunk {
+  fill: color-mix(in srgb, var(--chapter-dark) 70%, #8a6a4a);
+}
+
+.trail-node.is-visited .tree-crown {
+  fill: var(--chapter-accent);
+}
+
+.trail-node.is-visited .tree-shade {
+  fill: color-mix(in srgb, var(--chapter-dark) 86%, var(--chapter-accent));
+}
+
+.trail-node.is-current .node-art {
+  filter: drop-shadow(0 0 0 color-mix(in srgb, var(--chapter-accent) 55%, transparent))
+    drop-shadow(0 8px 16px color-mix(in srgb, var(--chapter-accent) 40%, transparent));
+}
+
+.node-index {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--chapter-accent) 14%, #ffffff);
-  color: color-mix(in srgb, var(--chapter-accent) 80%, #0f172a);
-  font-size: 0.7rem;
+  min-width: 21px;
+  height: 17px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--chapter-accent) 16%, #ffffff);
+  color: color-mix(in srgb, var(--chapter-accent) 82%, #0f172a);
+  font-size: 0.62rem;
   font-weight: 850;
   font-variant-numeric: tabular-nums;
 }
 
-.ppt-title {
-  grid-column: 2;
-  color: #0f172a;
-  font-size: 0.82rem;
-  font-weight: 800;
+.node-title {
+  max-width: 13ch;
+  color: #243240;
+  font-size: 0.84rem;
+  font-weight: 750;
   line-height: 1.2;
+  text-align: center;
+  text-wrap: balance;
 }
 
-.ppt-diff {
-  grid-column: 2;
-  justify-self: start;
-  margin-top: 4px;
-  padding: 1px 7px;
-  border-radius: 6px;
-  font-size: 0.68rem;
+.trail-node.is-landmark .node-title {
+  max-width: 12ch;
+  font-size: 1.04rem;
+  font-weight: 850;
+  color: #1f2a37;
+}
+
+.trail-node:not(.is-visited) .node-title {
+  color: #6b7b86;
+}
+
+.node-here {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 1px;
+  color: color-mix(in srgb, var(--chapter-accent) 80%, #0f172a);
+  font-size: 0.64rem;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+/* 悬停 / 聚焦预览卡：任意时刻最多一张（由 .is-previewed 唯一驱动） */
+.node-card {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  z-index: 6;
+  display: grid;
+  gap: 3px;
+  width: 212px;
+  padding: 11px 13px;
+  border: 1px solid color-mix(in srgb, var(--chapter-accent) 26%, rgba(15, 23, 42, 0.12));
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.18);
+  text-align: left;
+  opacity: 0;
+  transform: translate(-50%, 6px);
+  pointer-events: none;
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.trail-node.card-left .node-card {
+  left: 0;
+  transform: translate(0, 6px);
+}
+
+.trail-node.card-right .node-card {
+  left: auto;
+  right: 0;
+  transform: translate(0, 6px);
+}
+
+/* 上侧树的标签在上方，预览卡改到下方，避免与标签打架 */
+.trail-node.node-above .node-card {
+  bottom: auto;
+  top: calc(100% + 8px);
+  transform: translate(-50%, -6px);
+}
+
+.trail-node.is-previewed .node-card {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+.trail-node.card-left.is-previewed .node-card,
+.trail-node.card-right.is-previewed .node-card {
+  transform: translate(0, 0);
+}
+
+.node-card-eyebrow {
+  color: color-mix(in srgb, var(--chapter-accent) 72%, #0f172a);
+  font-size: 0.72rem;
   font-weight: 800;
-  background: #f6f0e3;
-  color: #74522b;
 }
 
-.ppt-diff.difficulty-进阶 {
-  background: #f5e5ed;
-  color: #93425e;
+.node-card-title {
+  color: #0f172a;
+  font-size: 0.92rem;
+  font-weight: 850;
 }
 
-.ppt-diff.difficulty-中等 {
-  background: #e7eef9;
-  color: #315f99;
+.node-card-desc {
+  color: #5b6b76;
+  font-size: 0.78rem;
+  line-height: 1.5;
 }
 
-@media (max-width: 620px) {
-  .chapter-preview {
-    width: 96vw;
-    height: 86vh;
-    padding: 14px;
+@media (max-width: 600px) {
+  .trail-topbar {
+    gap: 10px;
+    padding: 9px 14px;
   }
 
-  .chapter-preview-core {
-    width: 58%;
-    padding: 12px 14px 10px;
+  /* 窄屏隐藏顶栏中间标题（与下方大标题重复），保持顶栏一行内不换行 */
+  .trail-topbar-title {
+    display: none;
   }
 
-  .core-title {
-    font-size: 1.04rem;
+  .node-card {
+    width: 166px;
   }
 
-  .core-subtitle {
-    font-size: 0.78rem;
+  .node-title {
+    font-size: 0.7rem;
+    max-width: 10ch;
   }
 
-  .chapter-preview-point {
-    width: 32%;
-    padding: 7px 9px;
-  }
-
-  .ppt-title {
-    font-size: 0.74rem;
+  .trail-node.is-landmark .node-title {
+    font-size: 0.82rem;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .chapter-preview-shell,
-  .chapter-preview {
-    animation: none;
-  }
-
-  .chapter-preview-core,
-  .chapter-preview-point {
+  .trail-node,
+  .node-art,
+  .node-card,
+  .trail-progress-fill {
     transition: none;
   }
 }
