@@ -66,6 +66,39 @@ npm run preview
 - `.claude/development.md`：详细开发规范、模块说明、验证和产品注意事项。
 - `.claude/git.md`：Git 分支、提交信息和提交前检查规范。
 
+## 项目目录与 Claude Code 集成
+
+- 项目级智能体资料统一在 `.claude/`（历史上叫 `.agents/`，已迁移）。`.claude/settings.json` 是 Claude Code 项目级配置，会被 git 跟踪并随仓库同步。
+- 根目录 `CLAUDE.md` 是 Claude Code 默认读取的长期记忆入口（不再保留 `AGENT.md`）。
+- `.claude/artifacts/`（Playwright 截图输出）和 `.superpowers/`（Superpowers 工作目录）均已在 `.gitignore` 中忽略，不会污染仓库。
+
+## 项目级启用的 Claude Code 插件
+
+`.claude/settings.json` 声明了以下两个项目级插件，协作者克隆仓库后 Claude Code 会自动从 `claude-plugins-official` marketplace 拉取并启用。插件包本身缓存在 `~/.claude/plugins/cache/`，不进入仓库。
+
+- `frontend-design@claude-plugins-official`：前端设计与部署相关 skills。
+  - `web-design-guidelines`：UI / 无障碍 / Web Interface Guidelines 审查。
+  - `vercel-react-best-practices`：React、Next.js 性能优化规范。
+  - `vercel-react-view-transitions`：React View Transition API 动画方案。
+  - `vercel-composition-patterns`：React 组合模式（compound components、children API 等）。
+  - `vercel-react-native-skills`：React Native / Expo 移动端规范（本项目暂不使用）。
+  - `vercel-optimize`：Vercel 部署项目的成本/性能优化分析。
+  - `vercel-cli-with-tokens`、`deploy-to-vercel`：Vercel CLI / 部署工具链。
+- `superpowers@claude-plugins-official`：工作方法论 skills（前缀 `superpowers:`）。
+  - 创造性工作前：`brainstorming`、`writing-plans`。
+  - 实现执行：`executing-plans`、`subagent-driven-development`、`test-driven-development`、`using-git-worktrees`、`dispatching-parallel-agents`。
+  - 完成与评审：`verification-before-completion`、`requesting-code-review`、`receiving-code-review`、`finishing-a-development-branch`。
+  - 工具与排错：`systematic-debugging`、`writing-skills`、`using-superpowers`。
+
+### 使用约定
+
+- 任何新增功能、组件或交互改动前，优先调用 `superpowers:brainstorming` 厘清意图。
+- 多步实现任务先用 `superpowers:writing-plans` 形成计划，再用 `superpowers:executing-plans` / `subagent-driven-development` 执行。
+- 涉及 UI / 样式改动后，结合 `web-design-guidelines` 与 `npm run visual:review` 截图自检。
+- 涉及 React / 渲染性能调整，参照 `vercel-react-best-practices` 与 `vercel-composition-patterns`。
+- 报告"完成 / 通过"前必须走 `superpowers:verification-before-completion`，先有验证证据再下结论。
+- 当前项目是纯前端 SPA，未部署到 Vercel；`vercel-optimize` / `deploy-to-vercel` / `vercel-cli-with-tokens` 暂不主动触发，除非用户明确要求部署。
+
 ## 当前产品注意事项
 
 - 前端页面应从学习者视角出发。
