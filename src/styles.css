@@ -3267,11 +3267,12 @@ body:has(.forest-trail-page) {
   transition: transform 180ms ease;
 }
 
-/* 标签（序号 + 标题 + 标记）绝对定位、一律朝「外」排：下侧树在树下方，上侧树在树上方 */
+/* 标签（序号 + 标题 + 标记）绝对定位。
+   R012：标题侧位由独立的 .label-above / .label-below 控制（默认与 .node-above 同侧；
+   相邻标题包围盒重叠时由 computeLayout 翻到树苗另一侧，不影响树本身的 .node-above）。 */
 .node-label {
   position: absolute;
   left: 50%;
-  top: calc(100% + 4px);
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
@@ -3282,9 +3283,12 @@ body:has(.forest-trail-page) {
   pointer-events: none;
 }
 
-.trail-node.node-above .node-label {
-  top: auto;
-  bottom: calc(100% + 4px);
+.trail-node.label-below .node-label {
+  top: calc(100% + 4px + var(--label-extra-gap, 0px));
+}
+
+.trail-node.label-above .node-label {
+  bottom: calc(100% + 4px + var(--label-extra-gap, 0px));
 }
 
 .trail-node:hover .node-art,

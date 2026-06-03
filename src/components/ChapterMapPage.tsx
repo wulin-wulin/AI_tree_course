@@ -71,6 +71,8 @@ type TrailItem = {
   y: number;
   above: boolean; // true = 树在路上方（标题朝上排，避免压在路面）
   cardAlign: 'left' | 'center' | 'right';
+  // R012：标题摆放方向（默认 = 与 above 同向）。点标题与已放置标题重叠时翻边。
+  labelSide: 'above' | 'below';
 };
 
 type DecoTree = { x: number; y: number; s: number; species: number };
@@ -146,16 +148,16 @@ const PATH_SEED = 7; // 装饰背景树散布用的随机种子
 
 function computeLayout(width: number, sidebarReserved = 0): Layout {
   const w = width > 0 ? width : 960;
-  // 桌面端启用右侧章节索引时，给内容带预留右侧空间；草地底色仍全幅延伸，
-  // 但树和小径只在 contentMax 这个居中带子里活动，与侧栏不打架。
-  const contentMax = Math.max(360, Math.min(w - sidebarReserved, 1040));
+  // R012：桌面内容带子最大宽度由 1040 放宽到 1200，让版面"松一点"。元素尺寸不变。
+  const contentMax = Math.max(360, Math.min(w - sidebarReserved, 1200));
   const leftMargin = Math.max(0, (w - sidebarReserved - contentMax) / 2);
   const perRow = contentMax >= 600 ? 5 : 4; // 每个水平行放几棵树
   const padX = contentMax >= 600 ? 92 : 46;
   const leftX = leftMargin + padX;
   const rightX = leftMargin + contentMax - padX;
   const rowLen = rightX - leftX;
-  const rowH = w >= 600 ? 300 : 286; // 行间竖向距离
+  // R012：行间竖向距离也小幅放松，让上下两行标题更不挤。
+  const rowH = w >= 600 ? 328 : 304;
   const cornerR = 30; // 转弯圆角半径
   const inset = w >= 600 ? 104 : 76; // 行两端留白：树内缩，圆角与竖直连接段上不放树
   const roadHalf = 12; // 路面半宽
@@ -228,18 +230,72 @@ function computeLayout(width: number, sidebarReserved = 0): Layout {
       y,
       above,
       cardAlign,
+      labelSide: above ? 'above' : 'below', // 默认与 above 同侧；下面再做重叠翻边
     };
   });
 
-  // 3) 道路按章节分段染色：用每个 item 路上基点投影到弧长，取相邻章节中点为边界，精确对接不重叠。
+  // R012 迭代 1：估算包围盒已被证明不准（多行地标 / 字距 / max-width 折行等），
+  // 翻边的判定改放到组件的 useLayoutEffect 里跑 DOM 实测；这里只给出默认 labelSide。
+
+  // 3) 道路按章节分段染色：用每个 item 路上基点投影到弧长，取相邻章节中点为边界。
   const baseArcs = bases.map((b) => arcOfPoint(pts, cum, { x: b.x, y: b.rowY }));
+
+  // R012 迭代 3：跨节点处更平滑 —— 全局连续噪声 + C² 窗。
+  // 与迭代 2 的差异：
+  //   (a) noise 不再分段 phased，整条路用同一组以**弧长**为自变量的全局正弦叠加；
+  //       相邻段共享同一噪声曲线 → 节点前后弯曲的方向 / 节奏相连，跨节点无"重启"突兀感。
+  //   (b) 窗函数从 sin²(πt)（C¹）升到 sin⁴(πt) = sin²(πt)²（C²）：节点处位置 / 切线 / **曲率**三阶皆连续，
+  //       消除肉眼读到的"折"感。
+  //   (c) 段内归一化用真实弧长比例 t_arc，短段（U 形拐角附近）的 pinch 自动收紧，wobble 空间频率与长段一致。
+  // 振幅 / 节点对齐 / 同 path 三层共用等迭代 2 已认可的部分保持不变。
+  const nodeArcs = [0, ...baseArcs, total];
+  // R012 迭代 6：振幅退回起点 + 波长再大幅拉长，做成"轻倚"型扰动。
+  // 单 inter-node gap (~150 px) 内仅占 λ=1000 的 15%，pinch × noise 在单 gap 内达不到峰值，
+  // 实际可见偏移大概 2–3 px —— 曲线不再明显"波动"，而是非常轻微地"倚"向一侧再"倚回"，
+  // 像直线但有一丝呼吸。"≤10 px" 振幅上限自动重新生效。
+  const ampA = w >= 600 ? 4 : 2.5;
+  const lambda1 = w >= 600 ? 1000 : 700;
+  const lambda2 = lambda1 / 1.73; // 无理数比，避免周期性外观
+  const phi1 = 0;
+  const phi2 = 1.27;
+  // 次波系数 0.18：波长拉得很长以后，主旋律更突出，次波分量必须再降才不会成为新短波突兀源。
+  const noiseAtArc = (s: number): number =>
+    Math.sin((2 * Math.PI * s) / lambda1 + phi1) + 0.18 * Math.sin((2 * Math.PI * s) / lambda2 + phi2);
+  // C² 端点窗：sin⁴(πt) → t=0/1 时 window、window'、window'' 都为 0。
+  const pinchAt = (t: number): number => {
+    const s = Math.sin(Math.PI * t);
+    const s2 = s * s;
+    return s2 * s2;
+  };
+  const perturbedPts: Pt[] = new Array(pts.length);
+  let segS = 0;
+  for (let k = 0; k < pts.length; k += 1) {
+    const arc = cum[k];
+    while (segS < nodeArcs.length - 2 && arc > nodeArcs[segS + 1]) segS += 1;
+    const a0 = nodeArcs[segS];
+    const a1 = nodeArcs[segS + 1];
+    const tArc = a1 > a0 ? Math.min(1, Math.max(0, (arc - a0) / (a1 - a0))) : 0;
+    const window = pinchAt(tArc);
+    const prev = pts[Math.max(0, k - 1)];
+    const next = pts[Math.min(pts.length - 1, k + 1)];
+    const tx = next.x - prev.x;
+    const ty = next.y - prev.y;
+    const len = Math.hypot(tx, ty) || 1;
+    const nx = -ty / len;
+    const ny = tx / len;
+    const off = ampA * window * noiseAtArc(arc);
+    perturbedPts[k] = { x: +(pts[k].x + off * nx).toFixed(2), y: +(pts[k].y + off * ny).toFixed(2) };
+  }
+
+  // 所有路面层都用同一条扰动后的 path，避免层间错位。baseArcs 仍是基于原 cum 的索引，
+  // 这样章节分段染色边界、起止点 corners 仍是 spec 期望的"原坐标投影"。
   const segments = chapters.map((chapter, ci) => {
     const idxs = items.map((it, i) => (it.chapterIndex === ci ? i : -1)).filter((i) => i >= 0);
     const a = idxs[0];
     const b = idxs[idxs.length - 1];
     const startArc = a === 0 ? 0 : (baseArcs[a - 1] + baseArcs[a]) / 2;
     const endArc = b === N - 1 ? total : (baseArcs[b] + baseArcs[b + 1]) / 2;
-    return { d: segPath(pts, cum, total, startArc, endArc), accent: chapter.accent };
+    return { d: segPath(perturbedPts, cum, total, startArc, endArc), accent: chapter.accent };
   });
 
   const height = Math.ceil(padTop + (R - 1) * rowH + (roadHalf + rootGap) + padBottom);
@@ -260,7 +316,8 @@ function computeLayout(width: number, sidebarReserved = 0): Layout {
     width: w,
     height,
     items,
-    trailD: polylineD(pts),
+    // 用同一条扰动后的 path 给 trail-band / trail-dash / 章节分段染色 —— 三层共用、无错位。
+    trailD: polylineD(perturbedPts),
     segments,
     deco,
     landmarkSize,
@@ -332,6 +389,142 @@ function ChapterMapPage() {
   const sidebarReserved = hasSidebar && !indexCollapsed ? 200 : 0;
 
   const layout = useMemo(() => computeLayout(width, sidebarReserved), [width, sidebarReserved]);
+
+  // R012 迭代 1：DOM 实测翻边 + 地标兜底偏移。
+  // 用 useLayoutEffect 在 paint 前测量每个 slot 的 .node-art 与 .node-label 真实包围盒，
+  // 两 pass 跑算法：
+  //   Pass 1：把所有地标放进 placed（默认侧）。若与已放的地标重叠 → 给晚到的地标加纵向 offset
+  //          （每轮 +14px，最多 28px）；仍重叠 → 允许地标翻边（spec 把"地标不翻"作为偏好，
+  //          但 R012 迭代 1 反馈把"实际渲染不重叠"作为唯一硬指标）。
+  //   Pass 2：按 DOM 顺序遍历点，与「所有地标 + 之前已放的点」比对；严格更小才翻。
+  // 把每个 item 的最终 { side, offset } 存进 state；React 在同一 commit 周期内 re-render，
+  // 浏览器只 paint 最终结果（不闪烁）。
+  type LabelAdj = { side?: 'above' | 'below'; offset?: number };
+  const [labelAdjs, setLabelAdjs] = useState<Record<string, LabelAdj>>({});
+  useLayoutEffect(() => {
+    if (typeof document === 'undefined') return;
+    const slots = Array.from(document.querySelectorAll<HTMLElement>('.trail-slot[data-slot-key]'));
+    if (slots.length === 0) return;
+
+    type Measure = {
+      key: string;
+      kind: 'landmark' | 'point';
+      defaultSide: 'above' | 'below';
+      cx: number;
+      artTop: number;
+      artBottom: number;
+      labelW: number;
+      labelH: number;
+    };
+    type Box = { left: number; right: number; top: number; bottom: number };
+
+    const measures: Measure[] = [];
+    for (const slot of slots) {
+      const key = slot.dataset.slotKey;
+      const kind = slot.dataset.slotKind as 'landmark' | 'point' | undefined;
+      const defaultSide = slot.dataset.slotDefaultSide as 'above' | 'below' | undefined;
+      if (!key || !kind || !defaultSide) continue;
+      const art = slot.querySelector<HTMLElement>('.node-art');
+      const label = slot.querySelector<HTMLElement>('.node-label');
+      if (!art || !label) continue;
+      const ar = art.getBoundingClientRect();
+      const lr = label.getBoundingClientRect();
+      if (ar.width === 0 || lr.width === 0) continue;
+      measures.push({
+        key,
+        kind,
+        defaultSide,
+        cx: ar.left + ar.width / 2,
+        artTop: ar.top,
+        artBottom: ar.bottom,
+        labelW: lr.width,
+        labelH: lr.height,
+      });
+    }
+    if (measures.length === 0) return;
+
+    const boxAt = (m: Measure, side: 'above' | 'below', offset = 0): Box => {
+      const halfW = m.labelW / 2;
+      if (side === 'above') {
+        const bottom = m.artTop - 4 - offset;
+        return { left: m.cx - halfW, right: m.cx + halfW, top: bottom - m.labelH, bottom };
+      }
+      const top = m.artBottom + 4 + offset;
+      return { left: m.cx - halfW, right: m.cx + halfW, top, bottom: top + m.labelH };
+    };
+    const overlapArea = (a: Box, b: Box): number => {
+      const dx = Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left));
+      const dy = Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+      return dx * dy;
+    };
+    const sumOv = (b: Box, list: Box[]): number => list.reduce((s, x) => s + overlapArea(b, x), 0);
+    const next: Record<string, LabelAdj> = {};
+
+    // —— Pass 1：地标按 DOM 顺序入 placed。默认侧；冲突先加 offset（最多 28px），再退而求其次允许翻边。
+    const landmarkBoxes: Box[] = [];
+    const landmarkMeasures = measures.filter((m) => m.kind === 'landmark');
+    for (const m of landmarkMeasures) {
+      let side = m.defaultSide;
+      let offset = 0;
+      let box = boxAt(m, side, offset);
+      // 尝试加 offset
+      while (sumOv(box, landmarkBoxes) > 4 && offset < 28) {
+        offset += 14;
+        box = boxAt(m, side, offset);
+      }
+      // 仍冲突 → 尝试翻边（同时清零 offset），严格更小才翻
+      if (sumOv(box, landmarkBoxes) > 4) {
+        const alt = side === 'above' ? 'below' : 'above';
+        const altBox = boxAt(m, alt, 0);
+        const curOv = sumOv(box, landmarkBoxes);
+        const altOv = sumOv(altBox, landmarkBoxes);
+        if (altOv < curOv) {
+          side = alt;
+          offset = 0;
+          box = altBox;
+        }
+      }
+      landmarkBoxes.push(box);
+      if (side !== m.defaultSide || offset !== 0) {
+        next[m.key] = {
+          ...(side !== m.defaultSide ? { side } : {}),
+          ...(offset !== 0 ? { offset } : {}),
+        };
+      }
+    }
+
+    // —— Pass 2：点按 DOM 顺序入 placed，与「所有地标 + 之前的点」比对；严格更小才翻。
+    const pointBoxes: Box[] = [];
+    for (const m of measures) {
+      if (m.kind !== 'point') continue;
+      let side = m.defaultSide;
+      const defBox = boxAt(m, side, 0);
+      const placed = [...landmarkBoxes, ...pointBoxes];
+      const defOv = sumOv(defBox, placed);
+      let chosenBox = defBox;
+      if (defOv > 4) {
+        const alt = side === 'above' ? 'below' : 'above';
+        const altBox = boxAt(m, alt, 0);
+        const altOv = sumOv(altBox, placed);
+        if (altOv < defOv) {
+          side = alt;
+          chosenBox = altBox;
+        }
+      }
+      pointBoxes.push(chosenBox);
+      if (side !== m.defaultSide) {
+        next[m.key] = { side };
+      }
+    }
+
+    const sameAs = (a: Record<string, LabelAdj>, b: Record<string, LabelAdj>): boolean => {
+      const ak = Object.keys(a);
+      const bk = Object.keys(b);
+      if (ak.length !== bk.length) return false;
+      return ak.every((k) => a[k]?.side === b[k]?.side && (a[k]?.offset ?? 0) === (b[k]?.offset ?? 0));
+    };
+    setLabelAdjs((prev) => (sameAs(prev, next) ? prev : next));
+  }, [layout]);
 
   const lastPointIndex = useMemo(() => {
     const lastId = readLastPoint();
@@ -487,6 +680,9 @@ function ChapterMapPage() {
                 ? lastPointIndex >= chapterFirstIndex
                 : item.pointGlobalIndex <= lastPointIndex;
               const isPreviewed = previewKey === item.key;
+              const adj = labelAdjs[item.key];
+              const effectiveLabelSide = adj?.side ?? item.labelSide;
+              const labelExtraGap = adj?.offset ?? 0;
               const title = isLandmark ? item.chapter.title : item.point!.title;
               const size = isLandmark ? layout.landmarkSize : layout.pointSize;
               const ariaLabel = isLandmark
@@ -498,6 +694,9 @@ function ChapterMapPage() {
                   key={item.key}
                   className="trail-slot"
                   data-chapter-landmark={isLandmark ? item.chapter.id : undefined}
+                  data-slot-key={item.key}
+                  data-slot-kind={item.kind}
+                  data-slot-default-side={item.labelSide}
                   style={{ left: `${item.x}px`, top: `${item.y}px` } as CSSProperties}
                 >
                   <button
@@ -506,7 +705,7 @@ function ChapterMapPage() {
                       isVisited ? 'is-visited' : ''
                     } ${isCurrent ? 'is-current' : ''} ${isPreviewed ? 'is-previewed' : ''} ${
                       item.above ? 'node-above' : ''
-                    } card-${item.cardAlign}`}
+                    } label-${effectiveLabelSide} card-${item.cardAlign}`}
                     aria-label={ariaLabel}
                     onClick={() => handleItemClick(item)}
                     onPointerEnter={() => showPreview(item.key)}
@@ -519,6 +718,7 @@ function ChapterMapPage() {
                         '--chapter-soft': item.chapter.soft,
                         '--chapter-dark': item.chapter.dark,
                         '--node-size': `${size}px`,
+                        '--label-extra-gap': `${labelExtraGap}px`,
                       } as CSSProperties
                     }
                   >
