@@ -1,15 +1,18 @@
 import {
   useCallback,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type CSSProperties,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronLeft, MapPin } from 'lucide-react';
 import { chapters, orderedPoints, pointPath, readLastPoint } from '../data/courseNav';
 import type { KnowledgeCluster, KnowledgePoint } from '../data/courseKnowledge';
+import ChapterTrailIndex from './ChapterTrailIndex';
 
 /*
  * R010 · 知识森林地图 → 矩形之字形（蛇形）徒步长卷
@@ -141,12 +144,16 @@ function arcOfPoint(pts: Pt[], cum: number[], p: Pt): number {
 const SPECIES_BY_CHAPTER = [0, 1, 2, 3, 4, 5, 6, 7] as const;
 const PATH_SEED = 7; // 装饰背景树散布用的随机种子
 
-function computeLayout(width: number): Layout {
+function computeLayout(width: number, sidebarReserved = 0): Layout {
   const w = width > 0 ? width : 960;
-  const perRow = w >= 600 ? 5 : 4; // 每个水平行放几棵树
-  const padX = w >= 600 ? 92 : 46;
-  const leftX = padX;
-  const rightX = w - padX;
+  // 桌面端启用右侧章节索引时，给内容带预留右侧空间；草地底色仍全幅延伸，
+  // 但树和小径只在 contentMax 这个居中带子里活动，与侧栏不打架。
+  const contentMax = Math.max(360, Math.min(w - sidebarReserved, 1040));
+  const leftMargin = Math.max(0, (w - sidebarReserved - contentMax) / 2);
+  const perRow = contentMax >= 600 ? 5 : 4; // 每个水平行放几棵树
+  const padX = contentMax >= 600 ? 92 : 46;
+  const leftX = leftMargin + padX;
+  const rightX = leftMargin + contentMax - padX;
   const rowLen = rightX - leftX;
   const rowH = w >= 600 ? 300 : 286; // 行间竖向距离
   const cornerR = 30; // 转弯圆角半径
@@ -278,7 +285,53 @@ function ChapterMapPage() {
     return () => ro.disconnect();
   }, []);
 
-  const layout = useMemo(() => computeLayout(width), [width]);
+  // 桌面端启用右侧章节索引侧栏；layout 留出对应右侧空间，避免树与侧栏重叠。
+  const [hasSidebar, setHasSidebar] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const update = () => setHasSidebar(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+
+  // 章节索引可收起为指南针图标；localStorage 持久化用户偏好。
+  // 收起时 sidebarReserved=0 → computeLayout 让长卷在主视区居中，不再为侧栏让路。
+  const [indexCollapsed, setIndexCollapsed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return window.localStorage.getItem('trail-index-collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  const indexPanelRef = useRef<HTMLElement | null>(null);
+  const compassBtnRef = useRef<HTMLButtonElement | null>(null);
+
+  const toggleIndex = useCallback(() => {
+    setIndexCollapsed((prev) => {
+      const next = !prev;
+      try {
+        window.localStorage.setItem('trail-index-collapsed', String(next));
+      } catch {
+        /* 隐私模式下静默忽略，UI 偏好降级为单会话生效。 */
+      }
+      // 焦点联动：收起 → 焦点回到指南针按钮；展开 → 焦点到面板的收起按钮。
+      requestAnimationFrame(() => {
+        if (next) {
+          compassBtnRef.current?.focus();
+        } else {
+          const close = indexPanelRef.current?.querySelector<HTMLElement>('[data-trail-index-close]');
+          close?.focus();
+        }
+      });
+      return next;
+    });
+  }, []);
+
+  const sidebarReserved = hasSidebar && !indexCollapsed ? 200 : 0;
+
+  const layout = useMemo(() => computeLayout(width, sidebarReserved), [width, sidebarReserved]);
 
   const lastPointIndex = useMemo(() => {
     const lastId = readLastPoint();
@@ -286,6 +339,54 @@ function ChapterMapPage() {
     return orderedPoints.findIndex((p) => p.id === lastId);
   }, []);
   const progressCount = lastPointIndex + 1;
+  const lastChapterIndex = useMemo(() => {
+    if (lastPointIndex < 0) return -1;
+    const lastId = orderedPoints[lastPointIndex]?.clusterId;
+    return lastId ? chapters.findIndex((c) => c.id === lastId) : -1;
+  }, [lastPointIndex]);
+
+  // 滚动 scroll-spy：找视口上 ~40% 横线之上、距离最近的那个章节地标，作为当前活动章。
+  const [activeChapterId, setActiveChapterId] = useState<string | null>(chapters[0]?.id ?? null);
+  useEffect(() => {
+    let raf = 0;
+    const recompute = () => {
+      raf = 0;
+      // 阈值小一些：「最近刚走过的章节地标」才算当前章，避免下一章地标提前抢镜。
+      // 取与顶栏（~80px）大致同一区间，确保任意时刻最多一个候选。
+      const threshold = Math.min(window.innerHeight * 0.22, 160);
+      let bestId: string | null = chapters[0]?.id ?? null;
+      let bestTop = -Infinity;
+      for (const ch of chapters) {
+        const el = document.querySelector<HTMLElement>(`[data-chapter-landmark="${ch.id}"]`);
+        if (!el) continue;
+        const top = el.getBoundingClientRect().top;
+        if (top <= threshold && top > bestTop) {
+          bestTop = top;
+          bestId = ch.id;
+        }
+      }
+      setActiveChapterId(bestId);
+    };
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(recompute);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    recompute();
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [layout.height]);
+
+  const jumpToChapter = useCallback((chapterId: string) => {
+    const el = document.querySelector<HTMLElement>(`[data-chapter-landmark="${chapterId}"]`);
+    if (!el) return;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.scrollIntoView({ block: 'start', behavior: reduced ? 'auto' : 'smooth' });
+  }, []);
 
   const [previewKey, setPreviewKey] = useState<string | null>(null);
   const showPreview = useCallback((key: string) => setPreviewKey(key), []);
@@ -396,6 +497,7 @@ function ChapterMapPage() {
                 <li
                   key={item.key}
                   className="trail-slot"
+                  data-chapter-landmark={isLandmark ? item.chapter.id : undefined}
                   style={{ left: `${item.x}px`, top: `${item.y}px` } as CSSProperties}
                 >
                   <button
@@ -462,7 +564,53 @@ function ChapterMapPage() {
           </ol>
         </div>
       </div>
+
+      {/* 章节索引：展开为完整面板，或收起为指南针图标。
+          两种 UI 都用 portal 直接渲染到 <body>：
+          (1) 绕开 `.page` 因 `animation` 关键帧保留 `transform` 而创建的 fixed 包含块——
+              否则 `position: fixed` 会相对 `.page`、不再贴视口边、且随页面滚走。
+          (2) 仅当 ChapterMapPage 挂载时才存在，离开地图页时自动卸载，严格只在 /ai 出现。 */}
+      {hasSidebar && typeof document !== 'undefined'
+        ? createPortal(
+            indexCollapsed ? (
+              <button
+                ref={compassBtnRef}
+                type="button"
+                className="trail-index-compass"
+                aria-expanded="false"
+                aria-controls="trail-index-panel"
+                aria-label="展开章节索引"
+                onClick={toggleIndex}
+              >
+                <CompassIcon />
+              </button>
+            ) : (
+              <ChapterTrailIndex
+                ref={indexPanelRef}
+                chapters={chapters}
+                activeChapterId={activeChapterId}
+                lastChapterIndex={lastChapterIndex}
+                onJump={jumpToChapter}
+                onCollapse={toggleIndex}
+              />
+            ),
+            document.body,
+          )
+        : null}
     </main>
+  );
+}
+
+// 扁平几何指南针：圆环 + 红北 / 灰南菱形指针 + 一个安静的「N」。与森林地图同一视觉语言。
+function CompassIcon() {
+  return (
+    <svg viewBox="0 0 44 44" className="compass-svg" aria-hidden="true">
+      <circle cx="22" cy="22" r="19" className="compass-ring" />
+      <circle cx="22" cy="22" r="13.5" className="compass-face" />
+      <polygon points="22,7 25,22 22,17 19,22" className="compass-needle-n" />
+      <polygon points="22,37 19,22 22,27 25,22" className="compass-needle-s" />
+      <circle cx="22" cy="22" r="1.6" className="compass-pin" />
+    </svg>
   );
 }
 

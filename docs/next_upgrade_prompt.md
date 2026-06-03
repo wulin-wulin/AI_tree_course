@@ -7,13 +7,13 @@
 1. `docs/requirements/README.md`
 2. `docs/requirements/AGENT_PROTOCOL.md`
 3. `docs/requirements/current_state.md`
-4. `docs/requirements/rounds/R010_forest_map_trail_rebuild.md`
+4. `docs/requirements/rounds/R012_trail_widening_and_label_collision.md`
 
 ## 当前执行轮次
 
-`R010`（状态：`Ready`，**可实现**）
+`R012`（状态：`Ready`，**可实现**）
 
-> R001–R008 已 `Accepted`；R009（双预览卡 bug 修复）已 `Implemented`、代码在仓库、正式验收待定（暂不动其状态）。R010 把章节地图（Level 1 `/ai`）重构为「沿途生长的徒步长卷」：一条贯穿全部 49 个小节、宽幅蜿蜒、向下滚动的长路；小节＝沿路小树苗（标题常驻），章节＝不同生态色区 + 不同树种地标；点小节直达阅读页、点地标进该章首点；悬停/聚焦浮出单张轻预览卡；移除 R008 章节预览大方框；进度按小节呈现；小径改用向心 Catmull-Rom（α=0.5）使曲线圆滑。验收以需求讨论窗口主观评审 + 截图自检为准。
+> R001–R008、R010、R011 已 `Accepted`；R009 状态保留不动。R012 是聚焦微调轮，**只做两件事**：① 长卷路径**整体拉宽**（节点 / 树 / 标题 / 地标尺寸不变，仅 `computeLayout` 内的内容带子最大宽度 / `bowAmp` / `rowH` 适度放松，让版面"松一点"）；② **小节标题重叠时自动换边**——在 `computeLayout` 末尾对所有小节标题做一次包围盒重叠检测，若与已放置标题冲突就翻到树苗对侧，翻边判定须确定性（同输入同结果）、不影响 DOM 顺序与可达性。保留 R010+R011 全部基线（长卷主体、章节序列索引 + 指南针、Portal + 严格作用域、单预览卡、进度、可达性等）不回退。**路径走向的"单调感"本轮不处理**，留下一轮。验收以需求讨论窗口主观评审 + 截图自检为准。
 
 ## 实现完成后请自检视觉（UI 改动适用）
 
