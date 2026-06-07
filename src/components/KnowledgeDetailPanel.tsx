@@ -2,6 +2,13 @@ import type { CSSProperties } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import AnimationBlock from './AnimationBlock';
 import DiagramBlock from './DiagramBlock';
+import {
+  DeepDiveBlock,
+  IntuitionBlock,
+  QuizBlock,
+  RelatedPointsBlock,
+  WorkedExampleBlock,
+} from './SectionDepthBlocks';
 import type { KnowledgeCluster, KnowledgePoint } from '../data/courseKnowledge';
 
 type AdjacentPoint = { id: string; title: string } | null;
@@ -84,6 +91,8 @@ function KnowledgeDetailPanel({
         <p>{point.coreIdea}</p>
       </section>
 
+      <IntuitionBlock text={point.intuition} />
+
       <figure className="reading-figure">
         <DiagramBlock point={point} />
         <AnimationBlock type={point.animationType} suggestion={point.animationSuggestion} />
@@ -103,6 +112,10 @@ function KnowledgeDetailPanel({
           </div>
         ) : null}
       </section>
+
+      <WorkedExampleBlock example={point.workedExample} />
+
+      <DeepDiveBlock paragraphs={point.deepDive} />
 
       <section className="reading-aside-group" aria-label="参考资料">
         <details className="reading-aside">
@@ -153,6 +166,10 @@ function KnowledgeDetailPanel({
           </details>
         ) : null}
       </section>
+
+      <RelatedPointsBlock point={point} onSelect={onSelect} />
+
+      <QuizBlock items={point.quiz} />
 
       {point.ideologicalElement ? (
         <section className="reading-coda" aria-label="延伸思考">

@@ -2391,6 +2391,220 @@ a:focus-visible {
   line-height: 1.62;
 }
 
+/* ===== R013 · 知识点加厚内容块（单章一色，沿用现有阅读页视觉语言） ===== */
+
+/* 共用 kicker：与 reading-lead-kicker 同一族小标题 */
+.reading-block-kicker {
+  display: inline-block;
+  color: color-mix(in srgb, var(--detail-accent) 70%, #0f172a);
+  font-size: 0.76rem;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+}
+
+/* A 通俗直觉 / 类比：accent 左边线 + soft 极淡填充的引述卡 */
+.reading-intuition {
+  margin-top: 22px;
+  padding: 14px 16px 14px 18px;
+  border-left: 3px solid var(--detail-accent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--detail-soft) 40%, #ffffff);
+}
+
+.reading-intuition p {
+  margin: 8px 0 0;
+  color: #334155;
+  font-size: 0.96rem;
+  line-height: 1.74;
+  text-wrap: pretty;
+}
+
+/* C 例题 / 分步推导：同引述质感，带编号步骤 */
+.reading-example {
+  margin-top: 26px;
+  padding: 16px 18px;
+  border: 1px solid color-mix(in srgb, var(--detail-accent) 16%, rgba(15, 23, 42, 0.08));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--detail-soft) 28%, #ffffff);
+}
+
+.reading-example-setup {
+  margin: 8px 0 12px;
+  color: #1f2a37;
+  font-size: 0.95rem;
+  line-height: 1.66;
+  font-weight: 500;
+}
+
+.reading-example-steps {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  counter-reset: example-step;
+}
+
+.reading-example-steps li {
+  position: relative;
+  padding-left: 30px;
+  color: #374151;
+  font-size: 0.93rem;
+  line-height: 1.66;
+  counter-increment: example-step;
+}
+
+.reading-example-steps li::before {
+  position: absolute;
+  left: 0;
+  top: 1px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--detail-accent) 16%, #ffffff);
+  color: color-mix(in srgb, var(--detail-accent) 78%, #0f172a);
+  font-size: 0.72rem;
+  font-weight: 850;
+  content: counter(example-step);
+}
+
+.reading-example-takeaway {
+  margin: 12px 0 0;
+  padding-top: 11px;
+  border-top: 1px dashed color-mix(in srgb, var(--detail-accent) 22%, rgba(15, 23, 42, 0.12));
+  color: color-mix(in srgb, var(--detail-accent) 60%, #0f172a);
+  font-size: 0.91rem;
+  line-height: 1.6;
+  font-weight: 600;
+}
+
+/* B 展开讲讲：复用 .reading-aside 折叠外壳，仅补内容排版 */
+.reading-deepdive {
+  margin-top: 14px;
+}
+
+.reading-deepdive-body {
+  display: grid;
+  gap: 10px;
+  padding: 14px 15px;
+}
+
+.reading-deepdive-body p {
+  margin: 0;
+  color: #3a4654;
+  font-size: 0.92rem;
+  line-height: 1.74;
+  text-wrap: pretty;
+}
+
+/* E 自测题：题面常驻，答案点击展开 */
+.reading-quiz {
+  margin-top: 26px;
+}
+
+.reading-quiz-list {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reading-quiz-list li {
+  padding: 13px 15px;
+  border: 1px solid color-mix(in srgb, var(--detail-accent) 14%, rgba(15, 23, 42, 0.08));
+  border-radius: 11px;
+  background: #fbfdff;
+}
+
+.reading-quiz-q {
+  margin: 0;
+  color: #1f2a37;
+  font-size: 0.94rem;
+  line-height: 1.6;
+  font-weight: 600;
+}
+
+.reading-quiz-a {
+  margin-top: 9px;
+}
+
+.reading-quiz-a > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: color-mix(in srgb, var(--detail-accent) 72%, #0f172a);
+  font-size: 0.82rem;
+  font-weight: 800;
+  list-style: none;
+  cursor: pointer;
+}
+
+.reading-quiz-a > summary::-webkit-details-marker {
+  display: none;
+}
+
+.reading-quiz-a > summary::before {
+  color: color-mix(in srgb, var(--detail-accent) 60%, #64748b);
+  content: "▸";
+}
+
+.reading-quiz-a[open] > summary::before {
+  content: "▾";
+}
+
+.reading-quiz-a p {
+  margin: 8px 0 0;
+  color: #475569;
+  font-size: 0.9rem;
+  line-height: 1.66;
+}
+
+/* F 知识点关联：复用术语云胶囊语汇，本节高亮 + 前后点可跳转 */
+.reading-related {
+  margin-top: 26px;
+}
+
+.reading-related-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 11px;
+}
+
+.related-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 5px 11px;
+  border: 1px solid color-mix(in srgb, var(--detail-accent) 22%, #dadfd9);
+  border-radius: 999px;
+  background: #fffdf7;
+  color: color-mix(in srgb, var(--detail-accent) 76%, #0f172a);
+  font-size: 0.83rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+
+button.related-chip:hover,
+button.related-chip:focus-visible {
+  border-color: color-mix(in srgb, var(--detail-accent) 45%, #dadfd9);
+  background: color-mix(in srgb, var(--detail-accent) 10%, #ffffff);
+  transform: translateY(-1px);
+}
+
+.related-chip.is-current {
+  border-color: var(--detail-accent);
+  background: color-mix(in srgb, var(--detail-accent) 16%, #ffffff);
+  cursor: default;
+}
+
 /* 阅读模式：章节导航退场，阅读区占主视野并居中成单列 */
 .workspace.is-reading {
   grid-template-columns: minmax(0, 1fr);

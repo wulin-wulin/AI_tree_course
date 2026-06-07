@@ -1,8 +1,10 @@
 # R013 - 知识点阅读页内容加厚（小节深度扩充）
 
-状态：Draft
+状态：Implemented
 
 创建日期：2026-06-07
+
+确认日期：2026-06-07
 
 ## 背景
 
@@ -129,35 +131,47 @@ relatedPoints?: string[];              // F 知识点关联：存知识点 id（
 
 ## 执行反馈
 
-> 由执行智能体完成后填写。
+> 由执行智能体完成（本会话直接实现，2026-06-07）。
 
 ### 实现概况
 
-- 
+- 在 `KnowledgePoint` 上新增 5 个可选加厚字段（`intuition` / `deepDive` / `workedExample` / `quiz` / `relatedPoints`），全部向后兼容。
+- 新建 `SectionDepthBlocks.tsx`，内含 5 个内容块组件，按 R013 约定顺序插入 `KnowledgeDetailPanel`。
+- 试点章「搜索与问题求解」7 个知识点全部写满 5 类内容。
+- 新块样式全部沿用 `--detail-accent` / `--detail-soft` 的 `color-mix` 派生，复用 `.reading-aside`（折叠）、术语云胶囊、`.reading-lead`/`.reading-coda` 引述质感，实现「单章一色」契合。
 
 ### 已完成需求
 
-- 
+- 数据模型扩展（5 个可选字段 + `WorkedExample` / `QuizItem` 类型）。
+- 5 类内容块渲染：通俗直觉（常驻）、例题/分步（常驻）、展开讲讲（默认折叠）、知识点关联（常驻 chip，可点跳转、本节高亮）、自测题（常驻，答案点击展开）。
+- 插入顺序与 R013 第 2 节一致（直觉接核心思想后；例题+展开讲讲接基本原理后；关联+自测在参考折叠组与延伸思考之间）。
+- 视觉契合 6 条规则全部落实。
+- 试点章 7 个点内容写满，含 g/h 例题、Minimax 回传、Alpha-Beta 剪枝等带数字的分步推导。
 
 ### 未完成或部分完成
 
-- 
+- 试点章之外 7 章（42 个点）按设计未填新字段，渲染时自动不显示新块（属本轮非目标，待样板验收后再批量铺开）。
+- 本轮按用户选择未做「常见误区」块（非目标）。
 
 ### 执行中发现的问题
 
-- 
+- 默认 `npm run visual:review` 只截首页；为截阅读页（HashRouter）临时写了一次性脚本截试点章三页（A*/BFS/Minimax）的桌面+移动端，并程序化展开折叠块查看，自检后已删除该一次性脚本。
 
 ### 认为需求不合理或需要澄清的点
 
-- 
+- 暂无。批量铺开其余章节时，建议按本试点确立的写作密度（直觉 1 段 / 展开 2–4 段 / 例题 setup+3~4 步 / 自测 2 题 / 关联 1~3 个）保持一致。
 
 ### 修改文件清单
 
-- 
+- `src/data/courseKnowledge.ts`（新增类型与字段；填充 search-solving 7 点内容）
+- `src/components/SectionDepthBlocks.tsx`（新增）
+- `src/components/KnowledgeDetailPanel.tsx`（插入 5 个新块）
+- `src/styles.css`（新增 R013 内容块样式段）
 
 ### 验证结果
 
-- 
+- `npm run build`（`tsc -b && vite build`）通过，无类型错误。
+- 视觉自检：截图试点章 A*/BFS/Minimax 桌面端与移动端，新块单章一色、层次清晰、移动端无溢出；非试点点（ai-definition）确认不渲染任何新块（向后兼容）；Playwright 抓取无 console / page 错误。
 
 ## 审核记录
 
