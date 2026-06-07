@@ -3,8 +3,12 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import AnimationBlock from './AnimationBlock';
 import DiagramBlock from './DiagramBlock';
 import {
+  ComparisonBlock,
+  ComplexityBlock,
   DeepDiveBlock,
   IntuitionBlock,
+  PitfallsBlock,
+  PseudocodeBlock,
   QuizBlock,
   RelatedPointsBlock,
   WorkedExampleBlock,
@@ -113,7 +117,15 @@ function KnowledgeDetailPanel({
         ) : null}
       </section>
 
-      <WorkedExampleBlock example={point.workedExample} />
+      <PseudocodeBlock lines={point.pseudocode} />
+
+      <WorkedExampleBlock examples={point.workedExamples} />
+
+      <ComplexityBlock complexity={point.complexity} />
+
+      <ComparisonBlock table={point.comparison} />
+
+      <PitfallsBlock items={point.pitfalls} />
 
       <DeepDiveBlock paragraphs={point.deepDive} />
 

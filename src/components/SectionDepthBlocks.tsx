@@ -1,10 +1,18 @@
 import { ArrowRight } from 'lucide-react';
 import { findPoint } from '../data/courseNav';
-import type { KnowledgePoint, QuizItem, WorkedExample } from '../data/courseKnowledge';
+import type {
+  ComparisonTable,
+  ComplexityInfo,
+  KnowledgePoint,
+  Pitfall,
+  QuizItem,
+  WorkedExample,
+} from '../data/courseKnowledge';
 
 // R013 知识点加厚内容块。
 // 视觉契合约束：所有配色只用本章 accent（--detail-accent / --detail-soft 经 color-mix 派生），
 // 折叠复用 .reading-aside，胶囊复用 .term-cloud 语汇，引述卡沿用 .reading-lead/.reading-coda 质感。
+// 误区块的 ✗/✓ 用红绿“对错语义色”，与现有难度标签思路一致。
 
 // A 通俗直觉 / 类比 —— 常驻引述卡，承接核心思想。
 export function IntuitionBlock({ text }: { text?: string }) {
@@ -17,19 +25,128 @@ export function IntuitionBlock({ text }: { text?: string }) {
   );
 }
 
-// C 例题 / 分步推导 —— 常驻，紧跟基本原理与公式。
-export function WorkedExampleBlock({ example }: { example?: WorkedExample }) {
-  if (!example) return null;
+// 算法步骤 / 伪代码 —— 常驻代码块。
+export function PseudocodeBlock({ lines }: { lines?: string[] }) {
+  if (!lines?.length) return null;
+  return (
+    <section className="reading-pseudocode" aria-label="算法步骤">
+      <span className="reading-block-kicker">算法步骤</span>
+      <ol className="pseudocode-body">
+        {lines.map((line, index) => (
+          <li key={index}>{line}</li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+// C 例题 / 分步推导 —— 常驻，支持一节多例。
+export function WorkedExampleBlock({ examples }: { examples?: WorkedExample[] }) {
+  if (!examples?.length) return null;
+  const multiple = examples.length > 1;
   return (
     <section className="reading-example" aria-label="例题与分步推导">
       <span className="reading-block-kicker">动手算一算</span>
-      <p className="reading-example-setup">{example.setup}</p>
-      <ol className="reading-example-steps">
-        {example.steps.map((step, index) => (
-          <li key={index}>{step}</li>
+      {examples.map((example, exampleIndex) => (
+        <div className="reading-example-item" key={exampleIndex}>
+          {multiple ? <p className="reading-example-no">例 {exampleIndex + 1}</p> : null}
+          <p className="reading-example-setup">{example.setup}</p>
+          <ol className="reading-example-steps">
+            {example.steps.map((step, index) => (
+              <li key={index}>{step}</li>
+            ))}
+          </ol>
+          {example.takeaway ? <p className="reading-example-takeaway">{example.takeaway}</p> : null}
+        </div>
+      ))}
+    </section>
+  );
+}
+
+// 复杂度分析 —— 常驻表。
+export function ComplexityBlock({ complexity }: { complexity?: ComplexityInfo }) {
+  if (!complexity) return null;
+  return (
+    <section className="reading-complexity" aria-label="复杂度分析">
+      <span className="reading-block-kicker">复杂度分析</span>
+      <table className="reading-kv-table">
+        <tbody>
+          <tr>
+            <th scope="row">时间复杂度</th>
+            <td>{complexity.time}</td>
+          </tr>
+          <tr>
+            <th scope="row">空间复杂度</th>
+            <td>{complexity.space}</td>
+          </tr>
+          {complexity.note ? (
+            <tr>
+              <th scope="row">备注</th>
+              <td>{complexity.note}</td>
+            </tr>
+          ) : null}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+// 算法 / 概念对比 —— 常驻表。
+export function ComparisonBlock({ table }: { table?: ComparisonTable }) {
+  if (!table?.rows.length) return null;
+  return (
+    <section className="reading-comparison" aria-label="对比">
+      <span className="reading-block-kicker">{table.caption ?? '横向对比'}</span>
+      <div className="reading-table-scroll">
+        <table className="reading-compare-table">
+          <thead>
+            <tr>
+              {table.headers.map((header, index) => (
+                <th key={index} scope="col">
+                  {header}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {table.rows.map((row, rowIndex) => (
+              <tr key={rowIndex}>
+                {row.map((cell, cellIndex) => (
+                  <td key={cellIndex}>{cell}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+// 常见误区 —— 常驻，✗ 错误认知 / ✓ 纠正。
+export function PitfallsBlock({ items }: { items?: Pitfall[] }) {
+  if (!items?.length) return null;
+  return (
+    <section className="reading-pitfalls" aria-label="常见误区">
+      <span className="reading-block-kicker">常见误区</span>
+      <ul className="pitfall-list">
+        {items.map((item, index) => (
+          <li key={index}>
+            <p className="pitfall-wrong">
+              <span className="pitfall-mark wrong" aria-hidden="true">
+                ✗
+              </span>
+              {item.wrong}
+            </p>
+            <p className="pitfall-right">
+              <span className="pitfall-mark right" aria-hidden="true">
+                ✓
+              </span>
+              {item.right}
+            </p>
+          </li>
         ))}
-      </ol>
-      {example.takeaway ? <p className="reading-example-takeaway">{example.takeaway}</p> : null}
+      </ul>
     </section>
   );
 }
