@@ -1,3 +1,5 @@
+import { enrichment } from './courseEnrichment';
+
 export type Difficulty = '基础' | '中等' | '进阶';
 
 export type VisualType =
@@ -94,6 +96,22 @@ export type KnowledgePoint = {
   pitfalls?: Pitfall[]; // 常见误区
 };
 
+// R014：教材级加厚内容的字段集合。courseEnrichment.ts 按 pointId 存这些字段，
+// 在本文件与基础知识点数据合并。试点章（搜索与问题求解）的内容仍内联在下方知识点对象上，
+// 其余 7 章的内容来自 enrichment 映射；二者经 mergeEnrichment 合并为最终 knowledgePoints。
+export type PointEnrichment = Pick<
+  KnowledgePoint,
+  | 'intuition'
+  | 'deepDive'
+  | 'workedExamples'
+  | 'quiz'
+  | 'relatedPoints'
+  | 'pseudocode'
+  | 'complexity'
+  | 'comparison'
+  | 'pitfalls'
+>;
+
 export const clusters: KnowledgeCluster[] = [
   {
     id: 'intro-history',
@@ -169,7 +187,7 @@ export const clusters: KnowledgeCluster[] = [
   },
 ];
 
-export const knowledgePoints: KnowledgePoint[] = [
+const baseKnowledgePoints: KnowledgePoint[] = [
   {
     id: 'ai-definition',
     title: '人工智能定义',
@@ -1417,3 +1435,10 @@ export const knowledgePoints: KnowledgePoint[] = [
     difficulty: '进阶',
   },
 ];
+
+// 把 enrichment 映射合并进基础知识点：试点章已内联的字段保持不动，
+// 其余知识点叠加来自 courseEnrichment.ts 的教材级内容。
+export const knowledgePoints: KnowledgePoint[] = baseKnowledgePoints.map((point) => {
+  const extra = enrichment[point.id];
+  return extra ? { ...point, ...extra } : point;
+});
