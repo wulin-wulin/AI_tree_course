@@ -48,3 +48,32 @@ describe('partitionRect', () => {
     expect(a).toBe(b);
   });
 });
+
+import { scatterTrees, INSET } from './forestLayout';
+
+describe('scatterTrees', () => {
+  const rect = { x: 0.2, z: 0.2, w: 0.4, d: 0.4 };
+
+  it('点数 == 请求数', () => {
+    const pts = scatterTrees(rect, 7, 123);
+    expect(pts.length).toBe(7);
+  });
+
+  it('全部落在内缩矩形内', () => {
+    const pts = scatterTrees(rect, 10, 123);
+    for (const p of pts) {
+      expect(p.x).toBeGreaterThanOrEqual(rect.x + INSET * rect.w - 1e-9);
+      expect(p.x).toBeLessThanOrEqual(rect.x + rect.w - INSET * rect.w + 1e-9);
+      expect(p.z).toBeGreaterThanOrEqual(rect.z + INSET * rect.d - 1e-9);
+      expect(p.z).toBeLessThanOrEqual(rect.z + rect.d - INSET * rect.d + 1e-9);
+    }
+  });
+
+  it('确定性：同 seed 同结果', () => {
+    expect(scatterTrees(rect, 6, 9)).toEqual(scatterTrees(rect, 6, 9));
+  });
+
+  it('n=0 返回空数组', () => {
+    expect(scatterTrees(rect, 0, 1)).toEqual([]);
+  });
+});

@@ -1,3 +1,5 @@
+import { mulberry32 } from './prng';
+
 // 归一化布局空间：x∈[0,1]（右），z∈[0,1]（纵深）。
 export type Rect = { x: number; z: number; w: number; d: number };
 export type LayoutItem = { id: string; weight: number };
@@ -53,4 +55,33 @@ export function partitionRect(
 
   recurse(items, rect);
   return { cells, dividers };
+}
+
+// 树相对区域矩形的内缩比例（> 曲线分界抖动幅度，确保树在可见曲线内侧）。
+export const INSET = 0.16;
+
+export type Pt = { x: number; z: number };
+
+// 抖动网格散点：cols×rows 网格，每个被占用格放一个抖动点。确定性、不重叠、数量精确。
+export function scatterTrees(rect: Rect, n: number, seed: number): Pt[] {
+  if (n <= 0) return [];
+  const rnd = mulberry32(seed >>> 0);
+  const ix = rect.x + INSET * rect.w;
+  const iz = rect.z + INSET * rect.d;
+  const iw = rect.w * (1 - 2 * INSET);
+  const id = rect.d * (1 - 2 * INSET);
+  const cols = Math.ceil(Math.sqrt(n));
+  const rows = Math.ceil(n / cols);
+  const cellW = iw / cols;
+  const cellD = id / rows;
+  const pad = 0.18; // 格内边距，避免贴格边导致相邻过近
+  const pts: Pt[] = [];
+  for (let i = 0; i < n; i++) {
+    const c = i % cols;
+    const r = Math.floor(i / cols);
+    const jx = pad + rnd() * (1 - 2 * pad);
+    const jz = pad + rnd() * (1 - 2 * pad);
+    pts.push({ x: ix + (c + jx) * cellW, z: iz + (r + jz) * cellD });
+  }
+  return pts;
 }
