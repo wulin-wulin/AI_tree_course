@@ -31,49 +31,85 @@ export function ChapterRegionPatch({ region, toWorld }: { region: Region; toWorl
   );
 }
 
-// 单条分界线：把直线切分点沿法向加正弦抖动 → 曲线，再建一条略抬起的细带。
+// 单条分界线：直线细带。直线保证相邻分界线在 T 形交叉点精确相接、不断开。
 export function RegionDividerCurve({
   divider,
   toWorld,
-  seed,
 }: {
   divider: Divider;
   toWorld: ToWorld;
-  seed: number;
+  seed?: number;
 }) {
-  const points = useMemo(() => {
+  const geometry = useMemo(() => {
     const [ax, az] = divider.a;
     const [bx, bz] = divider.b;
-    const segs = 24;
-    const dx = bx - ax;
-    const dz = bz - az;
-    const len = Math.hypot(dx, dz) || 1;
-    const nx = -dz / len; // 法向
-    const nz = dx / len;
-    const amp = 0.018; // 归一化抖动幅度（< INSET，树不会越界）
-    const pts: THREE.Vector3[] = [];
-    for (let i = 0; i <= segs; i++) {
-      const t = i / segs;
-      const wob = Math.sin(t * Math.PI * 3 + seed) * amp * Math.sin(t * Math.PI); // 端点收敛
-      const lx = ax + dx * t + nx * wob;
-      const lz = az + dz * t + nz * wob;
-      const [wx, wz] = toWorld(lx, lz);
-      pts.push(new THREE.Vector3(wx, 0.03, wz));
-    }
-    return pts;
-  }, [divider, toWorld, seed]);
-
-  const geometry = useMemo(() => {
-    const curve = new THREE.CatmullRomCurve3(points);
-    return new THREE.TubeGeometry(curve, 40, 0.06, 6, false);
-  }, [points]);
+    const [wax, waz] = toWorld(ax, az);
+    const [wbx, wbz] = toWorld(bx, bz);
+    const curve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(wax, 0.03, waz),
+      new THREE.Vector3(wbx, 0.03, wbz),
+    ]);
+    return new THREE.TubeGeometry(curve, 1, 0.07, 8, false);
+  }, [divider, toWorld]);
 
   // Fix 2: dispose GPU geometry on unmount to prevent WebGL buffer leaks
   useEffect(() => () => { geometry.dispose(); }, [geometry]);
 
   return (
     <mesh geometry={geometry}>
-      <meshStandardMaterial color="#ffffff" roughness={0.6} transparent opacity={0.85} />
+      <meshStandardMaterial color="#ffffff" roughness={0.6} transparent opacity={0.9} />
+    </mesh>
+  );
+}
+
+// 地图外边界：一条连续闭合的圆角矩形白线，包住整张地图。
+export function MapBorderCurve({
+  toWorld,
+  radius = 0.07,
+}: {
+  toWorld: ToWorld;
+  radius?: number;
+}) {
+  const geometry = useMemo(() => {
+    const r = radius;
+    const edgeN = 8;
+    const cornerN = 8;
+    const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+    const seq: [number, number][] = [];
+    const arc = (cx: number, cz: number, a0: number, a1: number) => {
+      for (let i = 0; i <= cornerN; i++) {
+        const a = lerp(a0, a1, i / cornerN);
+        seq.push([cx + r * Math.cos(a), cz + r * Math.sin(a)]);
+      }
+    };
+    // 顺时针走一圈（归一化坐标，x 右 / z 下）
+    for (let i = 0; i < edgeN; i++) seq.push([lerp(r, 1 - r, i / edgeN), 0]);
+    arc(1 - r, r, -Math.PI / 2, 0); // 右上角
+    for (let i = 0; i < edgeN; i++) seq.push([1, lerp(r, 1 - r, i / edgeN)]);
+    arc(1 - r, 1 - r, 0, Math.PI / 2); // 右下角
+    for (let i = 0; i < edgeN; i++) seq.push([lerp(1 - r, r, i / edgeN), 1]);
+    arc(r, 1 - r, Math.PI / 2, Math.PI); // 左下角
+    for (let i = 0; i < edgeN; i++) seq.push([0, lerp(1 - r, r, i / edgeN)]);
+    arc(r, r, Math.PI, Math.PI * 1.5); // 左上角
+
+    const raw = seq.map(([x, z]) => {
+      const [wx, wz] = toWorld(x, z);
+      return new THREE.Vector3(wx, 0.04, wz);
+    });
+    // 去掉相邻重复点，避免闭合曲线在角点产生伪影
+    const pts: THREE.Vector3[] = [];
+    for (const p of raw) {
+      if (!pts.length || pts[pts.length - 1].distanceTo(p) > 1e-4) pts.push(p);
+    }
+    const curve = new THREE.CatmullRomCurve3(pts, true); // closed = true → 连续闭合
+    return new THREE.TubeGeometry(curve, 320, 0.07, 8, true);
+  }, [toWorld, radius]);
+
+  useEffect(() => () => { geometry.dispose(); }, [geometry]);
+
+  return (
+    <mesh geometry={geometry}>
+      <meshStandardMaterial color="#ffffff" roughness={0.6} transparent opacity={0.9} />
     </mesh>
   );
 }

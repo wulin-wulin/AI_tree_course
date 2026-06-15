@@ -2,9 +2,9 @@ import { useMemo, useState, useRef, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { MapControls, Html } from '@react-three/drei';
 import type { MapControls as MapControlsImpl } from 'three-stdlib';
-import type { ForestLayout, Divider } from '../../data/forestLayout';
+import type { ForestLayout } from '../../data/forestLayout';
 import SubsectionTree from './SubsectionTree';
-import { ChapterRegionPatch, RegionDividerCurve, type ToWorld } from './ChapterRegion';
+import { ChapterRegionPatch, RegionDividerCurve, MapBorderCurve, type ToWorld } from './ChapterRegion';
 
 const MAP_W = 20;
 const MAP_D = 14;
@@ -41,17 +41,6 @@ export default function ForestMapScene({ layout, litPointIds, onPickPoint, point
 
   const hoverTree = hoverId ? layout.trees.find((t) => t.pointId === hoverId) : null;
 
-  // 地图外边界：用与分界线相同的曲线风格，沿归一化矩形四边围一圈白线包住地图。
-  const borderEdges: Divider[] = useMemo(
-    () => [
-      { a: [0, 0], b: [1, 0] },
-      { a: [1, 0], b: [1, 1] },
-      { a: [1, 1], b: [0, 1] },
-      { a: [0, 1], b: [0, 0] },
-    ],
-    [],
-  );
-
   return (
     <Canvas
       frameloop="demand"
@@ -75,12 +64,10 @@ export default function ForestMapScene({ layout, litPointIds, onPickPoint, point
         <ChapterRegionPatch key={r.chapterId} region={r} toWorld={toWorld} />
       ))}
       {layout.dividers.map((d, i) => (
-        <RegionDividerCurve key={i} divider={d} toWorld={toWorld} seed={i * 1.7} />
+        <RegionDividerCurve key={i} divider={d} toWorld={toWorld} />
       ))}
-      {/* 外边界：白线围地图一圈 */}
-      {borderEdges.map((d, i) => (
-        <RegionDividerCurve key={`border-${i}`} divider={d} toWorld={toWorld} seed={100 + i * 2.3} />
-      ))}
+      {/* 外边界：连续闭合的圆角矩形白线 */}
+      <MapBorderCurve toWorld={toWorld} />
 
       {/* 区域标签 */}
       {layout.regions.map((r, i) => {
