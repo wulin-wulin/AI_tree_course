@@ -28,7 +28,7 @@ describe('mulberry32', () => {
 
 describe('hashSeed', () => {
   it('字符串转稳定数值种子', () => {
-    expect(hashSeed('intro-history')).toEqual(hashSeed('intro-history'));
+    expect(hashSeed('intro-history')).toBe(4027139092);
     expect(hashSeed('a')).not.toEqual(hashSeed('b'));
   });
 });

@@ -69,11 +69,11 @@ export function scatterTrees(rect: Rect, n: number, seed: number): Pt[] {
   const ix = rect.x + INSET * rect.w;
   const iz = rect.z + INSET * rect.d;
   const iw = rect.w * (1 - 2 * INSET);
-  const id = rect.d * (1 - 2 * INSET);
+  const insetD = rect.d * (1 - 2 * INSET);
   const cols = Math.ceil(Math.sqrt(n));
   const rows = Math.ceil(n / cols);
   const cellW = iw / cols;
-  const cellD = id / rows;
+  const cellD = insetD / rows;
   const pad = 0.18; // 格内边距，避免贴格边导致相邻过近
   const pts: Pt[] = [];
   for (let i = 0; i < n; i++) {
