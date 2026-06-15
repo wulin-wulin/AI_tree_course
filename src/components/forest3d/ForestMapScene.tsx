@@ -2,7 +2,7 @@ import { useMemo, useState, useRef, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { MapControls, Html } from '@react-three/drei';
 import type { MapControls as MapControlsImpl } from 'three-stdlib';
-import type { ForestLayout } from '../../data/forestLayout';
+import type { ForestLayout, Divider } from '../../data/forestLayout';
 import SubsectionTree from './SubsectionTree';
 import { ChapterRegionPatch, RegionDividerCurve, type ToWorld } from './ChapterRegion';
 
@@ -41,6 +41,17 @@ export default function ForestMapScene({ layout, litPointIds, onPickPoint, point
 
   const hoverTree = hoverId ? layout.trees.find((t) => t.pointId === hoverId) : null;
 
+  // 地图外边界：用与分界线相同的曲线风格，沿归一化矩形四边围一圈白线包住地图。
+  const borderEdges: Divider[] = useMemo(
+    () => [
+      { a: [0, 0], b: [1, 0] },
+      { a: [1, 0], b: [1, 1] },
+      { a: [1, 1], b: [0, 1] },
+      { a: [0, 1], b: [0, 0] },
+    ],
+    [],
+  );
+
   return (
     <Canvas
       frameloop="demand"
@@ -49,13 +60,14 @@ export default function ForestMapScene({ layout, litPointIds, onPickPoint, point
       style={{ position: 'absolute', inset: 0 }}
       onPointerMissed={() => setHoverId(null)}
     >
-      <color attach="background" args={['#cfe7ef']} />
+      {/* 背景与地面同色，地面铺到很远，整片绿延伸至无限远（看不到边） */}
+      <color attach="background" args={['#bfe0a0']} />
+      <fog attach="fog" args={['#bfe0a0', 60, 220]} />
       <ambientLight intensity={0.85} />
       <directionalLight position={[8, 14, 6]} intensity={0.9} castShadow />
 
-      {/* 地面（比地图略大） */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
-        <planeGeometry args={[MAP_W + 6, MAP_D + 6]} />
+        <planeGeometry args={[600, 600]} />
         <meshStandardMaterial color="#bfe0a0" roughness={1} />
       </mesh>
 
@@ -64,6 +76,10 @@ export default function ForestMapScene({ layout, litPointIds, onPickPoint, point
       ))}
       {layout.dividers.map((d, i) => (
         <RegionDividerCurve key={i} divider={d} toWorld={toWorld} seed={i * 1.7} />
+      ))}
+      {/* 外边界：白线围地图一圈 */}
+      {borderEdges.map((d, i) => (
+        <RegionDividerCurve key={`border-${i}`} divider={d} toWorld={toWorld} seed={100 + i * 2.3} />
       ))}
 
       {/* 区域标签 */}
