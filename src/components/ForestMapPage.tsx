@@ -39,9 +39,8 @@ export default function ForestMapPage() {
     if (point) navigate(pointPath(point));
   };
 
-  // 俯视角度三档：俯视（近垂直）/ 斜视（默认）/ 平视（低角度）
-  const [tiltIndex, setTiltIndex] = useState(1);
-  const tiltLabels = ['俯视', '斜视', '平视'];
+  // 一键「回到最佳视角」：每次点击自增 nonce，ForestMapScene 据此平滑复位相机。
+  const [resetNonce, setResetNonce] = useState(0);
 
   if (!supported) {
     return <ChapterMapPage />;
@@ -55,13 +54,12 @@ export default function ForestMapPage() {
           litPointIds={litPointIds}
           onPickPoint={onPickPoint}
           pointMeta={pointMeta}
-          tiltIndex={tiltIndex}
+          resetNonce={resetNonce}
         />
         <ForestMapOverlay
           litCount={litCount}
           total={orderedPoints.length}
-          viewLabel={tiltLabels[tiltIndex]}
-          onCycleView={() => setTiltIndex((i) => (i + 1) % tiltLabels.length)}
+          onResetView={() => setResetNonce((n) => n + 1)}
         />
       </ForestErrorBoundary>
     </main>

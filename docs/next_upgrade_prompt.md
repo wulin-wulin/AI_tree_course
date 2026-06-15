@@ -7,13 +7,15 @@
 1. `docs/requirements/README.md`
 2. `docs/requirements/AGENT_PROTOCOL.md`
 3. `docs/requirements/current_state.md`
-4. （暂无新轮次；R013 待需求讨论窗口拟定）
+4. `docs/requirements/rounds/R015_forest3d_brighten_and_depth.md`（当前轮次）
 
 ## 当前执行轮次
 
-暂无可执行轮次。
+**R015 — 3D 森林地图：调亮通透 + 增强立体感**（状态 `Ready`）。
 
-> R012 已 `Accepted`（共 6 次轮内迭代收敛——拉宽 + 标题翻边 + 路径有机扰动，最终为"轻倚"型扰动 `A=4 px / λ=1000 px` 桌面）；连同 R010 长卷 + R011 索引/全展开构成 Level 1 当前基线，R010–R012 整套森林地图迭代待人类用户作为下一个小版本统一提交。R013 由需求讨论窗口确认并置 `Ready` 后再更新本节指向。执行智能体在没有 `Ready` 轮次时不应实现任何内容。
+> 在 `3DMap` 分支已把 Level 1（`/ai`）切换为真实 3D 森林地图（Three.js + r3f + drei）的基础上，R015 修复「最里层 3D 视图太暗 + 跨机器颜色不一致」（根因为 r3f 默认 `ACESFilmicToneMapping` 压暗 + 光照保守），并增强立体感（放开相机有限度旋转）。目标观感为「明亮通透绘本风」。详见 R015 轮次文档。
+>
+> 历史背景：R013/R014（阅读页教材级加厚）已 `Implemented` 但审核记录尚空；3D 地图工作此前无轮次文档。这些历史欠账将在 R015 验收时连同回写 `current_state.md`，本轮执行智能体只需实现 R015 自身需求。
 
 ## 实现完成后请自检视觉（UI 改动适用）
 
