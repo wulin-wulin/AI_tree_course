@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { chapters, orderedPoints, chapterPoints, findChapter, readLastPoint, pointPath } from '../data/courseNav';
 import { buildForestLayout } from '../data/forestLayout';
@@ -39,6 +39,10 @@ export default function ForestMapPage() {
     if (point) navigate(pointPath(point));
   };
 
+  // 俯视角度三档：俯视（近垂直）/ 斜视（默认）/ 平视（低角度）
+  const [tiltIndex, setTiltIndex] = useState(1);
+  const tiltLabels = ['俯视', '斜视', '平视'];
+
   if (!supported) {
     return <ChapterMapPage />;
   }
@@ -51,8 +55,14 @@ export default function ForestMapPage() {
           litPointIds={litPointIds}
           onPickPoint={onPickPoint}
           pointMeta={pointMeta}
+          tiltIndex={tiltIndex}
         />
-        <ForestMapOverlay litCount={litCount} total={orderedPoints.length} />
+        <ForestMapOverlay
+          litCount={litCount}
+          total={orderedPoints.length}
+          viewLabel={tiltLabels[tiltIndex]}
+          onCycleView={() => setTiltIndex((i) => (i + 1) % tiltLabels.length)}
+        />
       </ForestErrorBoundary>
     </main>
   );

@@ -4123,7 +4123,21 @@ body:has(.forest-trail-page) {
 }
 .forest3d-back { font-weight: 700; color: #2e5d3a; text-decoration: none; }
 .forest3d-title { font-weight: 600; color: #5a7a5f; }
-.forest3d-progress { margin-left: auto; font-weight: 700; color: #2e5d3a; }
+.forest3d-viewbtn {
+  margin-left: auto;
+  padding: 6px 14px;
+  border: 1px solid #9cc99a;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #2e5d3a;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.forest3d-viewbtn:hover { background: #eaf6e2; border-color: #6fae5a; }
+.forest3d-viewbtn:active { transform: translateY(1px); }
+.forest3d-progress { margin-left: 16px; font-weight: 700; color: #2e5d3a; }
 .forest3d-hint {
   position: absolute;
   left: 18px; bottom: 16px;

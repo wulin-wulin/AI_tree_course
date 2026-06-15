@@ -1,5 +1,5 @@
 import { useMemo, useState, useRef, useEffect } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useThree } from '@react-three/fiber';
 import { MapControls, Html } from '@react-three/drei';
 import type { MapControls as MapControlsImpl } from 'three-stdlib';
 import type { ForestLayout } from '../../data/forestLayout';
@@ -9,14 +9,49 @@ import { ChapterRegionPatch, RegionDividerCurve, MapBorderCurve, type ToWorld } 
 const MAP_W = 20;
 const MAP_D = 14;
 
+// 俯视角度三档（与相机 +Y 轴的夹角，越小越接近正俯视）：俯视 / 斜视 / 平视
+const TILT_ANGLES = [(Math.PI * 22) / 180, (Math.PI * 44) / 180, (Math.PI * 66) / 180];
+
 export type SceneProps = {
   layout: ForestLayout;
   litPointIds: Set<string>;
   onPickPoint: (pointId: string) => void;
   pointMeta: Record<string, { title: string; summary: string; chapterTitle: string }>;
+  tiltIndex: number;
 };
 
-export default function ForestMapScene({ layout, litPointIds, onPickPoint, pointMeta }: SceneProps) {
+// 相机俯仰控制：按 tiltIndex 设定极角，保持当前距离与方位角，平移不受影响。
+function CameraRig({
+  tiltIndex,
+  controlsRef,
+}: {
+  tiltIndex: number;
+  controlsRef: React.RefObject<MapControlsImpl | null>;
+}) {
+  const camera = useThree((s) => s.camera);
+  const invalidate = useThree((s) => s.invalidate);
+  useEffect(() => {
+    const controls = controlsRef.current;
+    if (!controls) return;
+    const target = controls.target;
+    const offset = camera.position.clone().sub(target);
+    const dist = offset.length() || 22;
+    const azimuth = Math.atan2(offset.x, offset.z); // 保持当前朝向
+    const theta = TILT_ANGLES[tiltIndex] ?? TILT_ANGLES[1];
+    const horiz = dist * Math.sin(theta);
+    camera.position.set(
+      target.x + horiz * Math.sin(azimuth),
+      target.y + dist * Math.cos(theta),
+      target.z + horiz * Math.cos(azimuth),
+    );
+    camera.lookAt(target);
+    controls.update();
+    invalidate();
+  }, [tiltIndex, camera, controlsRef, invalidate]);
+  return null;
+}
+
+export default function ForestMapScene({ layout, litPointIds, onPickPoint, pointMeta, tiltIndex }: SceneProps) {
   const [hoverId, setHoverId] = useState<string | null>(null);
   const controlsRef = useRef<MapControlsImpl>(null);
 
@@ -117,14 +152,15 @@ export default function ForestMapScene({ layout, litPointIds, onPickPoint, point
         </Html>
       )}
 
+      <CameraRig tiltIndex={tiltIndex} controlsRef={controlsRef} />
       <MapControls
         ref={controlsRef}
         enableRotate={false}
         screenSpacePanning={false}
         minDistance={8}
         maxDistance={30}
-        maxPolarAngle={Math.PI / 2.4}
-        minPolarAngle={Math.PI / 5}
+        maxPolarAngle={(Math.PI * 72) / 180}
+        minPolarAngle={(Math.PI * 18) / 180}
         target={[0, 0, 0]}
       />
     </Canvas>
