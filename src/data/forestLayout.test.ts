@@ -77,3 +77,45 @@ describe('scatterTrees', () => {
     expect(scatterTrees(rect, 0, 1)).toEqual([]);
   });
 });
+
+import { buildForestLayout, pointInRect } from './forestLayout';
+
+const chapters = [
+  { id: 'c1', accent: '#111', soft: '#eee', dark: '#000', title: 'A' },
+  { id: 'c2', accent: '#222', soft: '#ddd', dark: '#001', title: 'B' },
+  { id: 'c3', accent: '#333', soft: '#ccc', dark: '#002', title: 'C' },
+];
+const pointsByChapter: Record<string, { id: string }[]> = {
+  c1: [{ id: 'p1' }, { id: 'p2' }, { id: 'p3' }],
+  c2: [{ id: 'p4' }, { id: 'p5' }],
+  c3: [{ id: 'p6' }],
+};
+
+describe('buildForestLayout', () => {
+  it('区域数 == 章节数，树数 == 小节总数', () => {
+    const { regions, trees } = buildForestLayout(chapters, pointsByChapter);
+    expect(regions.length).toBe(3);
+    expect(trees.length).toBe(6);
+  });
+
+  it('每棵树落在其所属章节的区域矩形内', () => {
+    const { regions, trees } = buildForestLayout(chapters, pointsByChapter);
+    for (const t of trees) {
+      const region = regions.find((r) => r.chapterId === t.chapterId)!;
+      expect(pointInRect(t, region.rect)).toBe(true);
+    }
+  });
+
+  it('区域携带配色与树种', () => {
+    const { regions } = buildForestLayout(chapters, pointsByChapter);
+    const r = regions.find((x) => x.chapterId === 'c1')!;
+    expect(r.accent).toBe('#111');
+    expect(typeof r.species).toBe('number');
+  });
+
+  it('确定性：同输入同输出', () => {
+    const a = JSON.stringify(buildForestLayout(chapters, pointsByChapter));
+    const b = JSON.stringify(buildForestLayout(chapters, pointsByChapter));
+    expect(a).toBe(b);
+  });
+});

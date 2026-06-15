@@ -1,4 +1,4 @@
-import { mulberry32 } from './prng';
+import { mulberry32, hashSeed } from './prng';
 
 // 归一化布局空间：x∈[0,1]（右），z∈[0,1]（纵深）。
 export type Rect = { x: number; z: number; w: number; d: number };
@@ -84,4 +84,84 @@ export function scatterTrees(rect: Rect, n: number, seed: number): Pt[] {
     pts.push({ x: ix + (c + jx) * cellW, z: iz + (r + jz) * cellD });
   }
   return pts;
+}
+
+export type ChapterLike = {
+  id: string;
+  accent: string;
+  soft: string;
+  dark: string;
+  title: string;
+};
+export type PointLike = { id: string };
+
+export type Region = {
+  chapterId: string;
+  title: string;
+  accent: string;
+  soft: string;
+  dark: string;
+  species: number;
+  rect: Rect;
+  centroid: Pt;
+};
+export type Tree = {
+  pointId: string;
+  chapterId: string;
+  x: number;
+  z: number;
+  scale: number; // 0.7~1，按确定性微扰
+  accent: string;
+  dark: string;
+};
+export type ForestLayout = { regions: Region[]; trees: Tree[]; dividers: Divider[] };
+
+export function pointInRect(p: Pt, r: Rect): boolean {
+  return p.x >= r.x && p.x <= r.x + r.w && p.z >= r.z && p.z <= r.z + r.d;
+}
+
+export function buildForestLayout(
+  chapters: ChapterLike[],
+  pointsByChapter: Record<string, PointLike[]>,
+): ForestLayout {
+  const items: LayoutItem[] = chapters.map((c) => ({
+    id: c.id,
+    weight: Math.max(1, (pointsByChapter[c.id] ?? []).length),
+  }));
+  const { cells, dividers } = partitionRect(items, { x: 0, z: 0, w: 1, d: 1 });
+
+  const regions: Region[] = chapters.map((c, idx) => {
+    const cell = cells.find((ce) => ce.id === c.id)!;
+    return {
+      chapterId: c.id,
+      title: c.title,
+      accent: c.accent,
+      soft: c.soft,
+      dark: c.dark,
+      species: idx % 8,
+      rect: cell.rect,
+      centroid: { x: cell.rect.x + cell.rect.w / 2, z: cell.rect.z + cell.rect.d / 2 },
+    };
+  });
+
+  const trees: Tree[] = [];
+  for (const c of chapters) {
+    const region = regions.find((r) => r.chapterId === c.id)!;
+    const pts = (pointsByChapter[c.id] ?? []);
+    const positions = scatterTrees(region.rect, pts.length, hashSeed(c.id));
+    const rnd = mulberry32(hashSeed(c.id) ^ 0x9e3779b9);
+    pts.forEach((p, i) => {
+      trees.push({
+        pointId: p.id,
+        chapterId: c.id,
+        x: positions[i].x,
+        z: positions[i].z,
+        scale: 0.7 + rnd() * 0.3,
+        accent: c.accent,
+        dark: c.dark,
+      });
+    });
+  }
+
+  return { regions, trees, dividers };
 }
