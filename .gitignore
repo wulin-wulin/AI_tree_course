@@ -150,3 +150,7 @@ yarn.lock
 
 # Superpowers brainstorming mockups
 .superpowers/
+
+# Playwright
+test-results/
+playwright-report/
