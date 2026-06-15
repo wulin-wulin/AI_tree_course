@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { MapControls, Html } from '@react-three/drei';
+import type { MapControls as MapControlsImpl } from 'three-stdlib';
 import type { ForestLayout } from '../../data/forestLayout';
 import SubsectionTree from './SubsectionTree';
 import { ChapterRegionPatch, RegionDividerCurve, type ToWorld } from './ChapterRegion';
@@ -17,6 +18,21 @@ export type SceneProps = {
 
 export default function ForestMapScene({ layout, litPointIds, onPickPoint, pointMeta }: SceneProps) {
   const [hoverId, setHoverId] = useState<string | null>(null);
+  const controlsRef = useRef<MapControlsImpl>(null);
+
+  // Fix 3: clamp pan so the map stays within MAP_W × MAP_D bounds
+  useEffect(() => {
+    const controls = controlsRef.current;
+    if (!controls) return;
+    const halfW = MAP_W / 2;
+    const halfD = MAP_D / 2;
+    const clamp = () => {
+      controls.target.x = Math.max(-halfW, Math.min(halfW, controls.target.x));
+      controls.target.z = Math.max(-halfD, Math.min(halfD, controls.target.z));
+    };
+    controls.addEventListener('change', clamp);
+    return () => controls.removeEventListener('change', clamp);
+  }, []);
 
   const toWorld: ToWorld = useMemo(
     () => (x: number, z: number) => [(x - 0.5) * MAP_W, (z - 0.5) * MAP_D],
@@ -99,6 +115,7 @@ export default function ForestMapScene({ layout, litPointIds, onPickPoint, point
       )}
 
       <MapControls
+        ref={controlsRef}
         enableRotate={false}
         screenSpacePanning={false}
         minDistance={8}

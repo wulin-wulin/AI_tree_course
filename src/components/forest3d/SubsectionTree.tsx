@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { ThreeEvent } from '@react-three/fiber';
 
 export type SubsectionTreeProps = {
@@ -21,6 +21,9 @@ export default function SubsectionTree({
   onHover,
 }: SubsectionTreeProps) {
   const [hovered, setHovered] = useState(false);
+
+  // Fix 1: reset cursor on unmount to prevent cursor leak when navigating away while hovered
+  useEffect(() => () => { document.body.style.cursor = 'auto'; }, []);
   const grown = lit ? 1 : 0.72; // 未读偏幼苗
   const s = scale * grown * (hovered ? 1.12 : 1);
   const crownColor = lit ? accent : dark;
@@ -60,15 +63,15 @@ export default function SubsectionTree({
           <cylinderGeometry args={[0.07, 0.1, 0.9, 8]} />
           <meshStandardMaterial color="#8a6239" roughness={0.9} />
         </mesh>
-        <mesh position={[0, 1.15, 0]}>
+        <mesh position={[0, 1.15, 0]} castShadow>
           <icosahedronGeometry args={[0.55, 1]} />
           <meshStandardMaterial color={crownColor} roughness={0.75} transparent opacity={crownOpacity} flatShading />
         </mesh>
-        <mesh position={[-0.32, 0.95, 0.1]}>
+        <mesh position={[-0.32, 0.95, 0.1]} castShadow>
           <icosahedronGeometry args={[0.34, 1]} />
           <meshStandardMaterial color={crownColor} roughness={0.75} transparent opacity={crownOpacity} flatShading />
         </mesh>
-        <mesh position={[0.32, 0.98, -0.05]}>
+        <mesh position={[0.32, 0.98, -0.05]} castShadow>
           <icosahedronGeometry args={[0.34, 1]} />
           <meshStandardMaterial color={crownColor} roughness={0.75} transparent opacity={crownOpacity} flatShading />
         </mesh>

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import * as THREE from 'three';
 import type { Region, Divider } from '../../data/forestLayout';
 
@@ -20,6 +20,9 @@ export function ChapterRegionPatch({ region, toWorld }: { region: Region; toWorl
     geo.rotateX(Math.PI / 2); // XY shape → XZ 平面
     return geo;
   }, [region, toWorld]);
+
+  // Fix 2: dispose GPU geometry on unmount to prevent WebGL buffer leaks
+  useEffect(() => () => { geometry.dispose(); }, [geometry]);
 
   return (
     <mesh geometry={geometry} position={[0, 0.01, 0]} receiveShadow>
@@ -64,6 +67,9 @@ export function RegionDividerCurve({
     const curve = new THREE.CatmullRomCurve3(points);
     return new THREE.TubeGeometry(curve, 40, 0.06, 6, false);
   }, [points]);
+
+  // Fix 2: dispose GPU geometry on unmount to prevent WebGL buffer leaks
+  useEffect(() => () => { geometry.dispose(); }, [geometry]);
 
   return (
     <mesh geometry={geometry}>
