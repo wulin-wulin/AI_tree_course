@@ -9,8 +9,9 @@ import { ChapterRegionPatch, RegionDividerCurve, MapBorderCurve, type ToWorld } 
 const MAP_W = 20;
 const MAP_D = 14;
 
-// 俯视角度三档（与相机 +Y 轴的夹角，越小越接近正俯视）：俯视 / 斜视 / 平视
-const TILT_ANGLES = [(Math.PI * 22) / 180, (Math.PI * 44) / 180, (Math.PI * 66) / 180];
+// 俯视角度三档（与相机 +Y 轴的夹角，越大越接近水平）：俯视 / 斜视 / 平视
+// 平视需 >69° 才能让地平线进入画面（露出蓝天白云）。
+const TILT_ANGLES = [(Math.PI * 24) / 180, (Math.PI * 48) / 180, (Math.PI * 80) / 180];
 
 export type SceneProps = {
   layout: ForestLayout;
@@ -19,6 +20,27 @@ export type SceneProps = {
   pointMeta: Record<string, { title: string; summary: string; chapterTitle: string }>;
   tiltIndex: number;
 };
+
+// 一朵白云：几个白球簇在一起、整体压扁，绘本风。静态（不依赖动画帧）。
+function CloudPuff({ position, scale = 1 }: { position: [number, number, number]; scale?: number }) {
+  const blobs: [number, number, number, number][] = [
+    [0, 0, 0, 1.5],
+    [-1.4, -0.2, 0.2, 1.05],
+    [1.3, -0.1, -0.2, 1.1],
+    [0.4, 0.5, 0.4, 0.9],
+    [-0.7, 0.35, -0.35, 0.8],
+  ];
+  return (
+    <group position={position} scale={[scale, scale * 0.6, scale]}>
+      {blobs.map(([x, y, z, r], i) => (
+        <mesh key={i} position={[x, y, z]}>
+          <sphereGeometry args={[r, 14, 12]} />
+          <meshStandardMaterial color="#ffffff" roughness={1} transparent opacity={0.94} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
 
 // 相机俯仰控制：按 tiltIndex 设定极角，保持当前距离与方位角，平移不受影响。
 function CameraRig({
@@ -84,12 +106,20 @@ export default function ForestMapScene({ layout, litPointIds, onPickPoint, point
       style={{ position: 'absolute', inset: 0 }}
       onPointerMissed={() => setHoverId(null)}
     >
-      {/* 背景与地面同色，地面铺到很远，整片绿延伸至无限远（看不到边） */}
-      <color attach="background" args={['#bfe0a0']} />
-      <fog attach="fog" args={['#bfe0a0', 60, 220]} />
+      {/* 蓝天（纯色背景不受雾影响）+ 地平线（雾把远处绿地淡化成地平线霾，与天空蓝交接成地平线） */}
+      <color attach="background" args={['#8fc4ea']} />
+      <fog attach="fog" args={['#dceaf3', 70, 250]} />
       <ambientLight intensity={0.85} />
       <directionalLight position={[8, 14, 6]} intensity={0.9} castShadow />
 
+      {/* 白云（落在地平线略上方的天空带里） */}
+      <CloudPuff position={[-36, 13, -88]} scale={6} />
+      <CloudPuff position={[2, 16, -115]} scale={8} />
+      <CloudPuff position={[34, 12, -96]} scale={6.5} />
+      <CloudPuff position={[66, 11, -70]} scale={5} />
+      <CloudPuff position={[-74, 14, -64]} scale={5.5} />
+
+      {/* 地面（绿地铺到很远，远处被雾淡化形成地平线） */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
         <planeGeometry args={[600, 600]} />
         <meshStandardMaterial color="#bfe0a0" roughness={1} />
@@ -159,7 +189,7 @@ export default function ForestMapScene({ layout, litPointIds, onPickPoint, point
         screenSpacePanning={false}
         minDistance={8}
         maxDistance={30}
-        maxPolarAngle={(Math.PI * 72) / 180}
+        maxPolarAngle={(Math.PI * 84) / 180}
         minPolarAngle={(Math.PI * 18) / 180}
         target={[0, 0, 0]}
       />
