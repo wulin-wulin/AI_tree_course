@@ -35,16 +35,6 @@ try {
   const hasCanvas = await page.locator('canvas').count();
   await page.screenshot({ path: path.join(out, 'forest-overview.png') });
 
-  // 点击画布中心，尝试命中一棵树 → 详情面板
-  const box = await page.locator('#forest-canvas-container').boundingBox();
-  if (box) {
-    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-    await page.waitForTimeout(1200);
-  }
-  const panelVisible = await page.locator('.forest-detail-panel').count();
-  const readmore = await page.locator('.forest-detail-readmore').count();
-  await page.screenshot({ path: path.join(out, 'forest-clicked.png') });
-
   // 阅读页验证（手写点，应含图示）
   await page.goto(`${base}/#/ai/intro-history/turing-test`, { waitUntil: 'networkidle' });
   await page.waitForTimeout(1200);
@@ -53,7 +43,7 @@ try {
   const dockItems = await page.locator('.dock-item').count();
   await page.screenshot({ path: path.join(out, 'reading-page.png') });
 
-  console.log(JSON.stringify({ hasCanvas, panelVisible, readmore, hasDetail, hasDiagram, dockItems, errors }, null, 2));
+  console.log(JSON.stringify({ hasCanvas, hasDetail, hasDiagram, dockItems, errors }, null, 2));
   await browser.close();
 } finally {
   server.kill('SIGINT');

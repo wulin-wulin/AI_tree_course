@@ -1,22 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 // @ts-expect-error vendor JS（参考项目原样）
 import { Scene3D } from '../forest/vendor/scene3d.js';
 import { buildSceneInputs } from '../forest/forestAdapter';
-import { loadPoint, type ForestIndex, type FullPoint, type ClusterMeta } from '../forest/forestData';
+import { type ForestIndex, type ClusterMeta } from '../forest/forestData';
 import indexJson from '../data/index.json';
-import ForestPointPanel from './ForestPointPanel';
 
 type RawIndex = ForestIndex & { clusters: ClusterMeta[]; points: Array<{ id: string; clusterId: string; title: string }> };
 const FOREST_INDEX = indexJson as unknown as RawIndex;
 
 function ForestMapPage() {
   const index = FOREST_INDEX;
+  const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const sceneRef = useRef<{ render: () => void; resize: (w: number, h: number) => void; raycast: (x: number, y: number) => string | null; flyTo: (id: string) => void; highlightTree: (id: string) => void; unhighlightAll: () => void; resetView: () => void } | null>(null);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [point, setPoint] = useState<FullPoint | null>(null);
-  const [loading, setLoading] = useState(false);
+  const sceneRef = useRef<{ render: () => void; resize: (w: number, h: number) => void; raycast: (x: number, y: number) => string | null; flyTo: (id: string) => void; resetView: () => void } | null>(null);
   const [query, setQuery] = useState('');
 
   const clusterById = useMemo(() => {
@@ -25,11 +22,25 @@ function ForestMapPage() {
     return m;
   }, [index]);
 
+  const clusterOfPoint = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const p of index.points) m[p.id] = p.clusterId;
+    return m;
+  }, [index]);
+
   const countByCluster = useMemo(() => {
     const m: Record<string, number> = {};
     for (const p of index.points) m[p.clusterId] = (m[p.clusterId] || 0) + 1;
     return m;
   }, [index]);
+
+  // 点击/搜索 → 进入原阅读页
+  const openReading = (id: string) => {
+    const clusterId = clusterOfPoint[id];
+    if (clusterId) navigate(`/ai/${clusterId}/${id}`);
+  };
+  const openReadingRef = useRef(openReading);
+  openReadingRef.current = openReading;
 
   // 启动 Scene3D（参考项目原生场景）
   useEffect(() => {
@@ -48,7 +59,7 @@ function ForestMapPage() {
 
     const onClick = (e: MouseEvent) => {
       const id = scene.raycast(e.clientX, e.clientY);
-      if (id) setSelectedId(id);
+      if (id) openReadingRef.current(id);
     };
     el.addEventListener('click', onClick);
 
@@ -56,37 +67,16 @@ function ForestMapPage() {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', onResize);
       el.removeEventListener('click', onClick);
-      // Scene3D 把 canvas 与标签层 append 到容器；卸载（含 StrictMode 双挂载）时清空，避免叠加。
-      el.replaceChildren();
+      el.replaceChildren(); // 清空 Scene3D 注入的 canvas/标签层（含 StrictMode 双挂载）
       sceneRef.current = null;
     };
   }, [index]);
-
-  // 选中 → 高亮 + 飞向 + 懒加载详情
-  useEffect(() => {
-    const scene = sceneRef.current;
-    if (!selectedId) {
-      setPoint(null);
-      scene?.unhighlightAll();
-      return;
-    }
-    scene?.flyTo(selectedId);
-    scene?.highlightTree(selectedId);
-    let alive = true;
-    setLoading(true);
-    loadPoint(selectedId)
-      .then((p) => { if (alive) { setPoint(p); setLoading(false); } })
-      .catch(() => { if (alive) setLoading(false); });
-    return () => { alive = false; };
-  }, [selectedId]);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
     return index.points.filter((p) => p.title.toLowerCase().includes(q)).slice(0, 12);
   }, [query, index]);
-
-  const selectedClusterId = point?.clusterId ?? index.points.find((p) => p.id === selectedId)?.clusterId;
 
   return (
     <main id="main-content" className="forest-parity-page" aria-label="人工智能知识森林">
@@ -103,7 +93,7 @@ function ForestMapPage() {
           {results.length ? (
             <div className="forest-search-results">
               {results.map((r) => (
-                <button key={r.id} type="button" onClick={() => { setSelectedId(r.id); setQuery(''); }}>
+                <button key={r.id} type="button" onClick={() => { setQuery(''); openReading(r.id); }}>
                   <strong>{r.title}</strong>
                   <small>{clusterById[r.clusterId]?.title}</small>
                 </button>
@@ -137,16 +127,6 @@ function ForestMapPage() {
           ))}
         </div>
       </div>
-
-      {selectedId ? (
-        <ForestPointPanel
-          point={point}
-          cluster={selectedClusterId ? clusterById[selectedClusterId] : undefined}
-          loading={loading}
-          readingHref={selectedId && selectedClusterId ? `#/ai/${selectedClusterId}/${selectedId}` : undefined}
-          onClose={() => setSelectedId(null)}
-        />
-      ) : null}
     </main>
   );
 }
