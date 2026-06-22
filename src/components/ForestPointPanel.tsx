@@ -6,10 +6,11 @@ type Props = {
   point: FullPoint | null;
   cluster: ClusterMeta | undefined;
   loading: boolean;
+  readingHref?: string;
   onClose: () => void;
 };
 
-function ForestPointPanel({ point, cluster, loading, onClose }: Props) {
+function ForestPointPanel({ point, cluster, loading, readingHref, onClose }: Props) {
   return (
     <aside
       className="forest-detail-panel"
@@ -72,6 +73,10 @@ function ForestPointPanel({ point, cluster, loading, onClose }: Props) {
               <h3>相关对比</h3>
               <ul>{point.comparisons.map((c) => <li key={c}>{c}</li>)}</ul>
             </section>
+          ) : null}
+
+          {readingHref ? (
+            <a className="forest-detail-readmore" href={readingHref}>进入阅读页 →</a>
           ) : null}
         </>
       )}

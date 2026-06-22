@@ -3709,3 +3709,13 @@ button.forest-tree.is-open .tree-art {
 }
 
 .reading-loading { padding: 48px 24px; color: #777; text-align: center; }
+
+.forest-detail-readmore {
+  display: inline-block;
+  margin-top: 20px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--detail-accent);
+  text-decoration: none;
+}
+.forest-detail-readmore:hover { text-decoration: underline; }

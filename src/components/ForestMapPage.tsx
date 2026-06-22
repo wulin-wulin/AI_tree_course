@@ -84,6 +84,7 @@ function ForestMapPage() {
             point={point}
             cluster={selectedClusterId ? clusterById[selectedClusterId] : undefined}
             loading={loading}
+            readingHref={selectedId && selectedClusterId ? `#/ai/${selectedClusterId}/${selectedId}` : undefined}
             onClose={() => setSelectedId(null)}
           />
         ) : null}
