@@ -5,6 +5,9 @@ type DiagramBlockProps = {
 };
 
 function DiagramBlock({ point }: DiagramBlockProps) {
+  if (!point.visualType) {
+    return null; // 挖矿点无指定图示类型 → 不渲染图示区（避免落到 default 的无关示意图）
+  }
   return (
     <section className="detail-section">
       <h3>自绘图示</h3>
