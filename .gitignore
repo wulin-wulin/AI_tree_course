@@ -147,3 +147,6 @@ yarn.lock
 
 # Agent-generated review artifacts
 .agents/artifacts/
+
+# Pipeline LLM cache (课程思政生成缓存)
+scripts/.cache/
