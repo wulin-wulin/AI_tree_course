@@ -7,13 +7,13 @@
 1. `docs/requirements/README.md`
 2. `docs/requirements/AGENT_PROTOCOL.md`
 3. `docs/requirements/current_state.md`
-4. `docs/requirements/rounds/R009_fix_multi_preview_card_bug.md`
+4. `docs/requirements/rounds/R010_knowledge_forest_567_and_3d_trees.md`
 
 ## 当前执行轮次
 
-`R009`（状态：`Ready`，**可实现**）
+`R010`（状态：`Ready`，**可实现**）
 
-> R001–R008 已 `Accepted`。R008 留下一个 bug：章节地图页 `/ai` 可能同时显示两张悬浮预览小卡（点击树 → 关方框后焦点回到树并保持其 `:focus` 触发的预览卡 + 再悬停另一棵树）。R009 专修这个 bug：让任意时刻最多只显示一张预览卡（推荐把触发选择器从 `:focus` 改为 `:focus-visible` + 方框打开期间隐藏全部预览卡），保留键盘可达性，不破坏 R008 其他功能。验收以需求讨论窗口主观评审 + 复现路径验证为准。
+> R001–R008 已 `Accepted`。R009（2D 预览卡 bug 修复）因本轮 `ChapterMapPage` 由 2D SVG 改为 3D 树森林而失效/不再适用，搁置。R010：知识点扩充至 ~567（挖矿式转换参考项目 + 全量课程思政）+ 簇 8→~23 + `/ai` 改 3D 树森林可视化 + 数据改拆 JSON 懒加载。详见设计 `docs/superpowers/specs/2026-06-22-knowledge-forest-567-design.md` 与计划 `docs/superpowers/plans/2026-06-22-data-pipeline.md`。子工程顺序：①数据管线→②3D森林→③接线整合。
 
 ## 实现完成后请自检视觉（UI 改动适用）
 
