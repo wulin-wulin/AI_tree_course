@@ -36,7 +36,7 @@ try {
   await page.screenshot({ path: path.join(out, 'forest-overview.png') });
 
   // 点击画布中心，尝试命中一棵树 → 详情面板
-  const box = await page.locator('.forest-3d-canvas').boundingBox();
+  const box = await page.locator('#forest-canvas-container').boundingBox();
   if (box) {
     await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
     await page.waitForTimeout(1200);
