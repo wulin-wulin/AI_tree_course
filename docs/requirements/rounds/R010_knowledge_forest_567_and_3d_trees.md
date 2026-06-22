@@ -52,14 +52,14 @@
 
 ## 执行反馈
 
-> 由执行智能体完成后填写。分三个子工程，当前进度：①② 已完成；③ 待做。
+> 由执行智能体完成后填写。三个子工程①②③ 全部完成，待讨论窗口评审。
 
 ### 实现概况
 
 - **子工程①（数据管线）已完成**：写成可重跑的 Node 管线 `scripts/build_knowledge.mjs` + `scripts/lib/*`，将森林项目 567 点 + 现有 49 手写点转换/归并为 **603 个知识点 / 23 簇**，产出 `src/data/index.json` 与 `src/data/points/*.json`。
 - **子工程②（3D 树森林可视化）已完成**：新增 `three`，`src/forest/`（`treeFactory`/`forestData`/`ForestScene`）+ `ForestMapPage`/`ForestPointPanel`，`/ai` 路由由 2D SVG 地图换为 3D 树森林：603 棵 seed 确定性树按簇分区/着色，俯视正交 + pan/zoom + LOD，点击树懒加载 `points/<id>.json` 在详情面板展示。Playwright 截图验证渲染与交互正常、无控制台错误。
 - **课程思政取消**：执行中用户决定不使用 `ideologicalElement`，管线移除生成步骤、删除 ideology/llm 模块，整条管线不依赖 LLM。
-- 子工程③ 接线整合（loader 统一新旧数据 + `ReadingPage`/`courseNav` 接 603 点）**尚未开始**。
+- **子工程③（接线整合）已完成**：`courseNav` 改读 `index.json`（603 点导航元数据）；`ReadingPage` 懒加载完整点；`DiagramBlock` 对无 `visualType` 的挖矿点不再误渲染；森林详情面板加“进入阅读页”入口；删除已无路由的旧 `ChapterMapPage`/`ChapterPreviewDialog`。注：`courseKnowledge.ts` 保留为数据管线手写输入源 + 类型定义（改它会与管线产物 `index.json` 形成循环依赖），故未按 spec 原文“改 loader”，改以 `courseNav` 改读 index 达成“统一到 603 点”目标。
 
 ### 已完成需求
 
@@ -69,8 +69,9 @@
 
 ### 未完成或部分完成
 
-- `/ai` 3D 树森林可视化（子工程②）。
-- `courseKnowledge.ts` 改 loader、`courseNav`/`ReadingPage`/`KnowledgeDetailPanel` 适配异步数据（子工程③）。
+- 课程思政：经用户确认取消，不做。
+- 可选观感增强：森林为纯俯视，树冠从正上看呈彩色块；可后续加相机倾斜增强 3D 纵深感（用户已知，暂未做）。
+- 性能：主 bundle 含 three + index.json 约 1.1MB；可后续对 `/ai` 路由做懒加载拆分（暂未做）。
 
 ### 执行中发现的问题
 
@@ -90,8 +91,10 @@
 ### 验证结果
 
 - `npm run test:pipeline`：17 个单测全过。
+- `npm run test:forest`：6 个单测全过（树工厂确定性 + 数据加载缓存）。
 - `npm run build:knowledge`：产出 603 点 / 23 簇，结构校验通过（无悬空簇/前置引用）。
-- `npm run build`：（见提交后验证）。
+- `npm run build`：`tsc -b && vite build` 通过；603 个 point JSON 各自切分为按需 chunk。
+- Playwright 截图自检（`.agents/scripts/shot-forest.mjs`）：`/#/ai` 森林渲染正常、点击树弹详情面板含“进入阅读页”链接；阅读页 `/#/ai/intro-history/turing-test` 详情+图示+上一点/下一点+本章列表均正常；无控制台错误。
 
 ## 审核记录
 
