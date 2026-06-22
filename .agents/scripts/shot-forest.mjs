@@ -42,9 +42,18 @@ try {
     await page.waitForTimeout(1200);
   }
   const panelVisible = await page.locator('.forest-detail-panel').count();
+  const readmore = await page.locator('.forest-detail-readmore').count();
   await page.screenshot({ path: path.join(out, 'forest-clicked.png') });
 
-  console.log(JSON.stringify({ hasCanvas, panelVisible, errors }, null, 2));
+  // 阅读页验证（手写点，应含图示）
+  await page.goto(`${base}/#/ai/intro-history/turing-test`, { waitUntil: 'networkidle' });
+  await page.waitForTimeout(1200);
+  const hasDetail = await page.locator('.detail-panel').count();
+  const hasDiagram = await page.locator('.diagram-canvas').count();
+  const dockItems = await page.locator('.dock-item').count();
+  await page.screenshot({ path: path.join(out, 'reading-page.png') });
+
+  console.log(JSON.stringify({ hasCanvas, panelVisible, readmore, hasDetail, hasDiagram, dockItems, errors }, null, 2));
   await browser.close();
 } finally {
   server.kill('SIGINT');
