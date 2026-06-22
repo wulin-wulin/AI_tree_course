@@ -52,35 +52,45 @@
 
 ## 执行反馈
 
-> 由执行智能体完成后填写。
+> 由执行智能体完成后填写。分三个子工程，当前进度：① 数据管线已完成；②③ 待做。
 
 ### 实现概况
 
-- （执行中）
+- **子工程①（数据管线）已完成**：写成可重跑的 Node 管线 `scripts/build_knowledge.mjs` + `scripts/lib/*`，将森林项目 567 点 + 现有 49 手写点转换/归并为 **603 个知识点 / 23 簇**，产出 `src/data/index.json` 与 `src/data/points/*.json`。
+- **课程思政取消**：执行中用户决定不使用 `ideologicalElement`，管线移除生成步骤、删除 ideology/llm 模块，整条管线不依赖 LLM。
+- 子工程② 3D 树森林可视化、③ 接线整合（loader 改造 + 组件适配）**尚未开始**。
 
 ### 已完成需求
 
-- 
+- 知识点扩充至 603（深度为主 + 适度补广，挖矿式转换参考项目）。
+- 簇结构 2 层、顶层簇 8 → 23。
+- 数据拆 JSON（index.json 轻量索引 + points/*.json 详情），为后续按需加载铺好结构。
 
 ### 未完成或部分完成
 
-- 
+- `/ai` 3D 树森林可视化（子工程②）。
+- `courseKnowledge.ts` 改 loader、`courseNav`/`ReadingPage`/`KnowledgeDetailPanel` 适配异步数据（子工程③）。
 
 ### 执行中发现的问题
 
-- 
+- 现有 49 手写点用旧 8 簇 ID，需重映射到新 23 簇 → 加 `scripts/authored_cluster_map.json` 解决。
+- 跨源去重按标题丢弃重复挖矿点后，其他点对其 id 的 prereq 会悬空 → 解析后按最终点集过滤悬空引用解决。
 
 ### 认为需求不合理或需要澄清的点
 
-- 
+- 课程思政经澄清后用户决定取消（见上）。
 
 ### 修改文件清单
 
-- 
+- 新增：`scripts/build_knowledge.mjs`、`scripts/lib/{transform,merge,layout,validate}.mjs` 及对应 `*.test.mjs`、`scripts/cluster_map.json`、`scripts/authored_cluster_map.json`、`src/data/clusters.json`、`src/data/index.json`、`src/data/points/*.json`(603)
+- 修改：`package.json`（加 `test:pipeline`/`build:knowledge`）、`.gitignore`
+- 文档：`docs/superpowers/specs/2026-06-22-knowledge-forest-567-design.md`、`docs/superpowers/plans/2026-06-22-data-pipeline.md`
 
 ### 验证结果
 
-- 
+- `npm run test:pipeline`：17 个单测全过。
+- `npm run build:knowledge`：产出 603 点 / 23 簇，结构校验通过（无悬空簇/前置引用）。
+- `npm run build`：（见提交后验证）。
 
 ## 审核记录
 

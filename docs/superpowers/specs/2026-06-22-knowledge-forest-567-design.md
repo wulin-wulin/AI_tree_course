@@ -27,7 +27,7 @@
 | 簇结构 | 2 层不变，顶层簇 8 → ~23 |
 | 执行路线 | 路线 1：挖矿式转换管线（半自动 + 人工补缺） |
 | 数据架构 | 拆 JSON + 按需加载 |
-| 课程思政 | **全部 ~567 点都写**（森林项目无此字段，需 LLM 逐点生成） |
+| 课程思政 | ~~全部 ~567 点都写~~ → **不使用**（执行中用户决定去掉 `ideologicalElement`，管线不再需要 LLM） |
 | 可视化范围 | **只要 3D 树森林观感**，保留现有页面框架/交互/详情面板 |
 | 森林呈现 | **全部 ~567 棵树一屏 + 按簇分区聚集**，缩放下钻 |
 | 课程思政生成 | 用 LLM 生成，接受 API 成本/耗时 |
@@ -97,12 +97,9 @@ React 组件（ChapterMapPage 3D 森林 / ReadingPage / KnowledgeDetailPanel）
 
 **ID 命名空间**：森林项目用 `kp_*`，我们沿用现有 kebab-case 风格；管线建立 `kp_* -> our-id` 映射表，保证 `prerequisites`/`related` 引用正确转换。
 
-### 4.3 课程思政生成阶段（`ideologicalElement`，全量）
+### 4.3 课程思政（已取消）
 
-- 森林项目无此字段，管线中独立一步：对全部 ~567 点用 **LLM 逐点生成** `ideologicalElement`。
-- 复用森林项目 `config.yaml` 的 LLM 端点（DeepSeek/OpenAI/Ollama，Key 走环境变量 `LLM_API_KEY`）。
-- **可缓存、可重跑、幂等**：结果按知识点 id 落盘缓存（如 `scripts/.cache/ideology/<id>.txt`），已生成的不重复调用，控制成本。
-- 生成 prompt 给定：知识点标题 + coreIdea + 所属簇，要求输出贴合该知识点的课程思政元素（科学精神 / 自主创新 / 伦理责任 / 家国情怀等，与知识点强相关，避免空泛套话）。
+> 执行计划一时用户决定**不使用课程思政**。管线移除了 `ideologicalElement` 生成步骤，输出剥除该字段，整条管线不再依赖任何 LLM。原 `ideology`/`llm_client`/`llm.config` 模块已删除。
 
 ### 4.4 布局生成阶段（树坐标）
 
