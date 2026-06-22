@@ -52,13 +52,14 @@
 
 ## 执行反馈
 
-> 由执行智能体完成后填写。分三个子工程，当前进度：① 数据管线已完成；②③ 待做。
+> 由执行智能体完成后填写。分三个子工程，当前进度：①② 已完成；③ 待做。
 
 ### 实现概况
 
 - **子工程①（数据管线）已完成**：写成可重跑的 Node 管线 `scripts/build_knowledge.mjs` + `scripts/lib/*`，将森林项目 567 点 + 现有 49 手写点转换/归并为 **603 个知识点 / 23 簇**，产出 `src/data/index.json` 与 `src/data/points/*.json`。
+- **子工程②（3D 树森林可视化）已完成**：新增 `three`，`src/forest/`（`treeFactory`/`forestData`/`ForestScene`）+ `ForestMapPage`/`ForestPointPanel`，`/ai` 路由由 2D SVG 地图换为 3D 树森林：603 棵 seed 确定性树按簇分区/着色，俯视正交 + pan/zoom + LOD，点击树懒加载 `points/<id>.json` 在详情面板展示。Playwright 截图验证渲染与交互正常、无控制台错误。
 - **课程思政取消**：执行中用户决定不使用 `ideologicalElement`，管线移除生成步骤、删除 ideology/llm 模块，整条管线不依赖 LLM。
-- 子工程② 3D 树森林可视化、③ 接线整合（loader 改造 + 组件适配）**尚未开始**。
+- 子工程③ 接线整合（loader 统一新旧数据 + `ReadingPage`/`courseNav` 接 603 点）**尚未开始**。
 
 ### 已完成需求
 
