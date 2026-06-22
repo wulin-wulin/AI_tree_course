@@ -1,0 +1,36 @@
+{
+  "id": "gradient-descent",
+  "title": "梯度下降",
+  "clusterId": "optimization",
+  "shortSummary": "梯度下降沿损失函数下降最快的反方向迭代更新参数。",
+  "coreIdea": "把训练看作寻找低损失位置的优化过程，每一步都根据局部斜率调整参数。",
+  "principles": [
+    "计算当前参数梯度",
+    "按学习率决定步长",
+    "迭代更新直到收敛或达到停止条件"
+  ],
+  "keyTerms": [
+    "损失曲面",
+    "学习率",
+    "梯度",
+    "收敛"
+  ],
+  "formula": "theta <- theta - eta * grad J(theta)",
+  "applications": [
+    "线性回归训练",
+    "神经网络训练",
+    "模型微调"
+  ],
+  "visualType": "gradient",
+  "animationType": "gradient",
+  "visualSuggestion": "用曲线和小球展示损失下降过程。",
+  "animationSuggestion": "小球沿损失曲线逐步滚向低点。",
+  "difficulty": "中等",
+  "prerequisites": [],
+  "importance": 0.6,
+  "pos": [
+    1766,
+    716.3
+  ],
+  "scale": 1.44
+}

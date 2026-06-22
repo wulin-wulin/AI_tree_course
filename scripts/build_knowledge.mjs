@@ -4,17 +4,12 @@ import { dirname, join } from 'node:path';
 import { mapKpToPoint } from './lib/transform.mjs';
 import { normalizeId, resolvePrereqs, dedupPoints } from './lib/merge.mjs';
 import { layoutByCluster } from './lib/layout.mjs';
-import { generateIdeology } from './lib/ideology.mjs';
-import { makeLlmCall } from './lib/llm_client.mjs';
 import { validateOutput } from './lib/validate.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const FOREST = '/Users/yzs/Desktop/ai-knowledge-forest';
-const CACHE = join(ROOT, 'scripts/.cache/ideology');
 const OUT_INDEX = join(ROOT, 'src/data/index.json');
 const OUT_POINTS = join(ROOT, 'src/data/points');
-
-const NO_LLM = process.argv.includes('--no-llm'); // 离线占位模式
 
 async function main() {
   const clusters = JSON.parse(readFileSync(join(ROOT, 'src/data/clusters.json'), 'utf8'));
@@ -63,22 +58,13 @@ async function main() {
     p.pos = l.pos; p.scale = l.scale;
   }
 
-  // 5) 课程思政（全量）
-  const llmCall = NO_LLM
-    ? async () => '【待生成课程思政占位】'
-    : makeLlmCall(JSON.parse(readFileSync(join(ROOT, 'scripts/llm.config.json'), 'utf8')));
-  let done = 0;
-  for (const p of merged) {
-    p.ideologicalElement = await generateIdeology(p, { llmCall, cacheDir: CACHE });
-    if (++done % 25 === 0) console.log(`课程思政 ${done}/${merged.length}`);
-  }
-
-  // 6) 写产物
+  // 5) 写产物（不使用课程思政，剥除该字段）
   rmSync(OUT_POINTS, { recursive: true, force: true });
   mkdirSync(OUT_POINTS, { recursive: true });
   const pointsObj = {};
   const index = { schema_version: '1.0', clusters, points: [] };
   for (const p of merged) {
+    delete p.ideologicalElement;
     pointsObj[p.id] = p;
     writeFileSync(join(OUT_POINTS, `${p.id}.json`), JSON.stringify(p, null, 2));
     index.points.push({
@@ -89,7 +75,7 @@ async function main() {
   }
   writeFileSync(OUT_INDEX, JSON.stringify(index, null, 2));
 
-  // 7) 校验
+  // 6) 校验
   const errs = validateOutput(index, pointsObj);
   console.log(`产出 ${index.points.length} 个知识点，${clusters.length} 个簇`);
   if (errs.length) { console.error('校验失败:\n' + errs.slice(0, 20).join('\n')); process.exit(1); }

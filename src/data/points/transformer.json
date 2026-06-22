@@ -1,0 +1,38 @@
+{
+  "id": "transformer",
+  "title": "Transformer",
+  "clusterId": "transformer",
+  "shortSummary": "Transformer 以自注意力为核心，成为现代大模型的基础架构。",
+  "coreIdea": "通过多头注意力和前馈网络堆叠，在并行计算中建模长距离依赖。",
+  "principles": [
+    "位置编码补充顺序信息",
+    "多头注意力捕捉不同关系",
+    "残差连接和层归一化稳定训练"
+  ],
+  "keyTerms": [
+    "自注意力",
+    "多头注意力",
+    "位置编码",
+    "前馈网络"
+  ],
+  "comparisons": [
+    "相较 RNN，Transformer 并行度更高，也更适合大规模预训练。"
+  ],
+  "applications": [
+    "大语言模型",
+    "机器翻译",
+    "视觉 Transformer"
+  ],
+  "visualType": "transformer",
+  "animationType": "attention",
+  "visualSuggestion": "绘制 embedding、attention、feed-forward 和输出的流程块。",
+  "animationSuggestion": "用流动线表示 token 经过注意力层的信息交换。",
+  "difficulty": "进阶",
+  "prerequisites": [],
+  "importance": 0.6,
+  "pos": [
+    263.6,
+    1312.9
+  ],
+  "scale": 1.44
+}

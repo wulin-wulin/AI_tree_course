@@ -1,0 +1,37 @@
+{
+  "id": "attention-mechanism",
+  "title": "注意力机制",
+  "clusterId": "transformer",
+  "shortSummary": "注意力机制让模型在处理一个位置时动态关注其他相关位置。",
+  "coreIdea": "通过 Query、Key、Value 的相似度计算权重，再加权汇聚信息。",
+  "principles": [
+    "Query 与 Key 计算相关性",
+    "Softmax 得到注意力权重",
+    "按权重汇聚 Value 信息"
+  ],
+  "keyTerms": [
+    "Query",
+    "Key",
+    "Value",
+    "Softmax",
+    "权重"
+  ],
+  "formula": "Attention(Q,K,V)=softmax(QK^T/sqrt(d_k))V",
+  "applications": [
+    "机器翻译",
+    "文本理解",
+    "多模态对齐"
+  ],
+  "visualType": "attention",
+  "animationType": "attention",
+  "visualSuggestion": "用 token 间流动线条表现权重分配。",
+  "animationSuggestion": "让不同粗细的光流在 token 之间循环。",
+  "difficulty": "中等",
+  "prerequisites": [],
+  "importance": 0.6,
+  "pos": [
+    134.8,
+    1301.8
+  ],
+  "scale": 1.44
+}

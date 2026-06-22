@@ -7,7 +7,6 @@ export function validateOutput(index, points) {
     if (!p.pos || p.pos.length !== 2) errs.push(`点 ${p.id} 缺坐标`);
   }
   for (const [id, full] of Object.entries(points)) {
-    if (!full.ideologicalElement || !full.ideologicalElement.trim()) errs.push(`点 ${id} 缺课程思政`);
     for (const pre of (full.prerequisites || [])) {
       if (!pointIds.has(pre)) errs.push(`点 ${id} 前置依赖悬空: ${pre}`);
     }

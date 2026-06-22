@@ -1,0 +1,35 @@
+{
+  "id": "diffusion-model",
+  "title": "扩散模型",
+  "clusterId": "generative",
+  "shortSummary": "扩散模型通过学习从噪声逐步还原数据来生成高质量样本。",
+  "coreIdea": "正向过程逐步加噪，反向网络学习去噪，最终从随机噪声生成图像等内容。",
+  "principles": [
+    "正向扩散加入噪声",
+    "反向去噪恢复结构",
+    "条件信息可控制生成方向"
+  ],
+  "keyTerms": [
+    "加噪",
+    "去噪",
+    "采样步",
+    "条件生成"
+  ],
+  "comparisons": [
+    "GAN 通过对抗训练生成，扩散模型通过逐步去噪生成，训练更稳定但采样较慢。"
+  ],
+  "applications": [
+    "文生图",
+    "图像修复",
+    "视频生成"
+  ],
+  "visualType": "diffusion",
+  "difficulty": "进阶",
+  "prerequisites": [],
+  "importance": 0.6,
+  "pos": [
+    236.8,
+    1904.8
+  ],
+  "scale": 1.44
+}

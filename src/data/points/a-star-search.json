@@ -1,0 +1,39 @@
+{
+  "id": "a-star-search",
+  "title": "A* 搜索",
+  "clusterId": "search-solving",
+  "shortSummary": "A* 同时考虑已走代价和预计剩余代价，是经典启发式最短路径算法。",
+  "coreIdea": "每次选择 f(n)=g(n)+h(n) 最小的节点扩展，在合适启发式下兼顾效率和最优性。",
+  "principles": [
+    "g(n) 表示起点到当前节点的实际代价",
+    "h(n) 表示当前节点到目标的估计代价",
+    "可采纳启发式可保证最优解"
+  ],
+  "keyTerms": [
+    "开放表",
+    "关闭表",
+    "路径代价",
+    "启发式"
+  ],
+  "comparisons": [
+    "当 h(n)=0 时，A* 退化为 Dijkstra；当更偏重 h(n) 时更像贪心最佳优先搜索。"
+  ],
+  "formula": "f(n) = g(n) + h(n)",
+  "applications": [
+    "机器人导航",
+    "游戏地图寻路",
+    "物流路径规划"
+  ],
+  "visualType": "search",
+  "animationType": "search",
+  "visualSuggestion": "用网格显示起点、目标、已扩展节点和候选路径。",
+  "animationSuggestion": "逐格点亮搜索前沿，最后连成路径。",
+  "difficulty": "中等",
+  "prerequisites": [],
+  "importance": 0.6,
+  "pos": [
+    1195.3,
+    293.3
+  ],
+  "scale": 1.44
+}
