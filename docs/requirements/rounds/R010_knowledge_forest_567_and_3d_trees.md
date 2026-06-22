@@ -57,7 +57,7 @@
 ### 实现概况
 
 - **子工程①（数据管线）已完成**：写成可重跑的 Node 管线 `scripts/build_knowledge.mjs` + `scripts/lib/*`，将森林项目 567 点 + 现有 49 手写点转换/归并为 **603 个知识点 / 23 簇**，产出 `src/data/index.json` 与 `src/data/points/*.json`。
-- **子工程②（3D 树森林可视化）已完成**：新增 `three`，`src/forest/`（`treeFactory`/`forestData`/`ForestScene`）+ `ForestMapPage`/`ForestPointPanel`，`/ai` 路由由 2D SVG 地图换为 3D 树森林：603 棵 seed 确定性树按簇分区/着色，俯视正交 + pan/zoom + LOD，点击树懒加载 `points/<id>.json` 在详情面板展示。Playwright 截图验证渲染与交互正常、无控制台错误。
+- **子工程②（3D 树森林可视化）已完成，并按用户反馈重做对齐参考项目**：最初按“只要观感”做了浅色平面俯视版；用户要求与参考项目 `ai-knowledge-forest` 一致后**重做**为：**移植参考的 `scene3d.js`/`tree_factory.js`（vendor）**，深色主题、透视倾斜 3D 视角、地面平面、按簇着色的区域多边形 + 簇标签（DOM 投影）、按缩放/重要度的密度可见性 3D 树、顶部搜索 + 跳转知识簇、左下图例；管线新增**簇区域多边形**写入 index.json；`forestAdapter` 把我们的数据适配成 Scene3D 的 layout/data。点击树仍用**我们的** `ForestPointPanel` + “进入阅读页”（未移植参考的 facet 弹窗）。深色样式仅作用于森林页，首页/阅读页保持浅色。Playwright 截图与参考项目并排比对一致、无控制台错误。
 - **课程思政取消**：执行中用户决定不使用 `ideologicalElement`，管线移除生成步骤、删除 ideology/llm 模块，整条管线不依赖 LLM。
 - **子工程③（接线整合）已完成**：`courseNav` 改读 `index.json`（603 点导航元数据）；`ReadingPage` 懒加载完整点；`DiagramBlock` 对无 `visualType` 的挖矿点不再误渲染；森林详情面板加“进入阅读页”入口；删除已无路由的旧 `ChapterMapPage`/`ChapterPreviewDialog`。注：`courseKnowledge.ts` 保留为数据管线手写输入源 + 类型定义（改它会与管线产物 `index.json` 形成循环依赖），故未按 spec 原文“改 loader”，改以 `courseNav` 改读 index 达成“统一到 603 点”目标。
 
