@@ -2,6 +2,8 @@ import { useEffect, useState, type CSSProperties } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, Home, List, PanelRightClose } from 'lucide-react';
 import KnowledgeDetailPanel from './KnowledgeDetailPanel';
+import type { KnowledgeCluster, KnowledgePoint } from '../data/courseKnowledge';
+import { loadPoint } from '../forest/forestData';
 import {
   adjacent,
   chapterPoints,
@@ -16,33 +18,37 @@ function ReadingPage() {
   const { chapterId, pointId } = useParams();
   const navigate = useNavigate();
   const [isDockOpen, setDockOpen] = useState(true);
+  const [full, setFull] = useState<KnowledgePoint | null>(null);
+  const [loadErr, setLoadErr] = useState(false);
 
-  const point = findPoint(pointId);
+  const meta = findPoint(pointId);
   const chapter = findChapter(chapterId);
 
   useEffect(() => {
-    if (point) {
-      rememberLastPoint(point.id);
-    }
-  }, [point]);
+    if (meta) rememberLastPoint(meta.id);
+  }, [meta?.id]);
 
-  // 兜底：知识点不存在 → 回章节导览；章节不匹配 → 跳到该知识点的正确章节地址。
-  if (!point) {
-    return <Navigate to="/ai" replace />;
-  }
-  if (!chapter || chapter.id !== point.clusterId) {
-    return <Navigate to={pointPath(point)} replace />;
-  }
+  useEffect(() => {
+    if (!pointId) return;
+    let alive = true;
+    setFull(null);
+    setLoadErr(false);
+    loadPoint(pointId)
+      .then((p) => { if (alive) setFull(p as unknown as KnowledgePoint); })
+      .catch(() => { if (alive) setLoadErr(true); });
+    return () => { alive = false; };
+  }, [pointId]);
+
+  if (!meta) return <Navigate to="/ai" replace />;
+  if (!chapter || chapter.id !== meta.clusterId) return <Navigate to={pointPath(meta)} replace />;
 
   const points = chapterPoints(chapter.id);
-  const { prev, next } = adjacent(point.id);
-  const { index, total } = positionInChapter(point);
+  const { prev, next } = adjacent(meta.id);
+  const { index, total } = positionInChapter(meta);
 
   const goToPoint = (id: string) => {
     const target = findPoint(id);
-    if (target) {
-      navigate(pointPath(target));
-    }
+    if (target) navigate(pointPath(target));
   };
 
   return (
@@ -53,16 +59,22 @@ function ReadingPage() {
       style={{ '--chapter-accent': chapter.accent, '--chapter-soft': chapter.soft } as CSSProperties}
     >
       <div className="reading-main">
-        <KnowledgeDetailPanel
-          key={point.id}
-          point={point}
-          cluster={chapter}
-          prev={prev}
-          next={next}
-          positionInCluster={index}
-          clusterTotal={total}
-          onSelect={goToPoint}
-        />
+        {full ? (
+          <KnowledgeDetailPanel
+            key={full.id}
+            point={full}
+            cluster={chapter as KnowledgeCluster}
+            prev={prev}
+            next={next}
+            positionInCluster={index}
+            clusterTotal={total}
+            onSelect={goToPoint}
+          />
+        ) : loadErr ? (
+          <p className="reading-loading">该知识点内容加载失败。</p>
+        ) : (
+          <p className="reading-loading">加载中…</p>
+        )}
       </div>
 
       <aside className={`chapter-dock ${isDockOpen ? 'is-open' : 'is-collapsed'}`} aria-label="本章节知识点列表">
@@ -89,8 +101,8 @@ function ReadingPage() {
                 <li key={item.id}>
                   <button
                     type="button"
-                    className={`dock-item ${item.id === point.id ? 'is-current' : ''}`}
-                    aria-current={item.id === point.id ? 'true' : undefined}
+                    className={`dock-item ${item.id === meta.id ? 'is-current' : ''}`}
+                    aria-current={item.id === meta.id ? 'true' : undefined}
                     onClick={() => goToPoint(item.id)}
                   >
                     <span className="dock-item-index">{String(itemIndex + 1).padStart(2, '0')}</span>

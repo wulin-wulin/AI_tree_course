@@ -3707,3 +3707,5 @@ button.forest-tree.is-open .tree-art {
   line-height: 1.65;
   color: #333;
 }
+
+.reading-loading { padding: 48px 24px; color: #777; text-align: center; }
