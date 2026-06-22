@@ -1,58 +1,53 @@
-import { clusters, knowledgePoints } from './courseKnowledge';
-import type { KnowledgeCluster, KnowledgePoint } from './courseKnowledge';
+import indexJson from './index.json';
+import type { ForestIndex, ClusterMeta, PointMeta } from '../forest/forestData';
 
-// 学习者可见术语：课程 → 章节 → 知识点。
-// 现有 clusters 即「章节」，knowledgePoints 即「知识点」，此处只做派生导航，不改动原始数据结构。
-export const chapters: KnowledgeCluster[] = clusters;
+const index = indexJson as unknown as ForestIndex;
 
-// 把全部知识点按「章节顺序 + 章节内顺序」拉直成一条连续学习序列。
-export const orderedPoints: KnowledgePoint[] = clusters.flatMap((chapter) =>
-  knowledgePoints.filter((point) => point.clusterId === chapter.id),
+// 学习者可见术语：课程 → 章节（知识簇）→ 知识点。导航只依赖 index.json 的轻量元数据。
+export const chapters: ClusterMeta[] = index.clusters;
+
+// 按「章节顺序 + 章节内顺序」拉直成连续学习序列。
+export const orderedPoints: PointMeta[] = chapters.flatMap((chapter) =>
+  index.points.filter((point) => point.clusterId === chapter.id),
 );
 
-export function findChapter(chapterId: string | undefined): KnowledgeCluster | undefined {
+const pointById = new Map(orderedPoints.map((p) => [p.id, p]));
+
+export function findChapter(chapterId: string | undefined): ClusterMeta | undefined {
   return chapters.find((chapter) => chapter.id === chapterId);
 }
 
-export function findPoint(pointId: string | undefined): KnowledgePoint | undefined {
-  return orderedPoints.find((point) => point.id === pointId);
+export function findPoint(pointId: string | undefined): PointMeta | undefined {
+  return pointId ? pointById.get(pointId) : undefined;
 }
 
-export function chapterPoints(chapterId: string): KnowledgePoint[] {
+export function chapterPoints(chapterId: string): PointMeta[] {
   return orderedPoints.filter((point) => point.clusterId === chapterId);
 }
 
-export function firstPointOf(chapterId: string): KnowledgePoint | undefined {
+export function firstPointOf(chapterId: string): PointMeta | undefined {
   return orderedPoints.find((point) => point.clusterId === chapterId);
 }
 
 export type AdjacentPoint = { id: string; title: string } | null;
 
-// 上一点 / 下一点按全课程连续序列推进：到本章末尾时，下一点自动进入下一章首个知识点。
 export function adjacent(pointId: string): { prev: AdjacentPoint; next: AdjacentPoint } {
-  const index = orderedPoints.findIndex((point) => point.id === pointId);
-  if (index === -1) {
-    return { prev: null, next: null };
-  }
-  const prev = index > 0 ? orderedPoints[index - 1] : null;
-  const next = index < orderedPoints.length - 1 ? orderedPoints[index + 1] : null;
+  const i = orderedPoints.findIndex((point) => point.id === pointId);
+  if (i === -1) return { prev: null, next: null };
+  const prev = i > 0 ? orderedPoints[i - 1] : null;
+  const next = i < orderedPoints.length - 1 ? orderedPoints[i + 1] : null;
   return {
     prev: prev ? { id: prev.id, title: prev.title } : null,
     next: next ? { id: next.id, title: next.title } : null,
   };
 }
 
-// 知识点在其所属章节内的位置（1 基）与本章总数。
-export function positionInChapter(point: KnowledgePoint): { index: number; total: number } {
+export function positionInChapter(point: PointMeta): { index: number; total: number } {
   const points = chapterPoints(point.clusterId);
-  return {
-    index: points.findIndex((item) => item.id === point.id) + 1,
-    total: points.length,
-  };
+  return { index: points.findIndex((item) => item.id === point.id) + 1, total: points.length };
 }
 
-// 路由地址：知识点阅读页 /ai/:chapterId/:pointId
-export function pointPath(point: Pick<KnowledgePoint, 'id' | 'clusterId'>): string {
+export function pointPath(point: Pick<PointMeta, 'id' | 'clusterId'>): string {
   return `/ai/${point.clusterId}/${point.id}`;
 }
 
@@ -62,7 +57,7 @@ export function rememberLastPoint(pointId: string): void {
   try {
     window.localStorage.setItem(LAST_POINT_KEY, pointId);
   } catch {
-    // 隐私模式或禁用存储时静默忽略，位置感属轻量增强、缺失不影响主流程。
+    /* 隐私模式忽略 */
   }
 }
 
