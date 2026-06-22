@@ -1,6 +1,6 @@
 import { HashRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import HomePage from './components/HomePage';
-import ChapterMapPage from './components/ChapterMapPage';
+import ForestMapPage from './components/ForestMapPage';
 import ReadingPage from './components/ReadingPage';
 import { firstPointOf, pointPath } from './data/courseNav';
 
@@ -20,7 +20,7 @@ function App() {
         </a>
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/ai" element={<ChapterMapPage />} />
+          <Route path="/ai" element={<ForestMapPage />} />
           <Route path="/ai/:chapterId" element={<ChapterRedirect />} />
           <Route path="/ai/:chapterId/:pointId" element={<ReadingPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
