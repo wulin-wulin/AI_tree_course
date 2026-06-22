@@ -18,9 +18,18 @@ export function layoutByCluster(points, opts = {}) {
   const cellW = CANVAS_W / cols, cellH = CANVAS_H / rows;
 
   const result = new Map();
+  const regions = {};
   clusterIds.forEach((cid, ci) => {
     const col = ci % cols, row = Math.floor(ci / cols);
     const ox = col * cellW, oy = row * cellH;
+    const pad = Math.min(cellW, cellH) * 0.04;
+    regions[cid] = {
+      polygon: [
+        [ox + pad, oy + pad], [ox + cellW - pad, oy + pad],
+        [ox + cellW - pad, oy + cellH - pad], [ox + pad, oy + cellH - pad],
+      ],
+      labelPos: [ox + cellW / 2, oy + cellH * 0.16],
+    };
     const kps = byCluster.get(cid);
     const n = kps.length;
     // 初始网格散布 + 抖动
@@ -53,5 +62,5 @@ export function layoutByCluster(points, opts = {}) {
       });
     });
   });
-  return result;
+  return { positions: result, regions };
 }

@@ -51,10 +51,10 @@ async function main() {
     }
   }
 
-  // 4) 布局
-  const layout = layoutByCluster(merged);
+  // 4) 布局（含簇区域多边形）
+  const { positions, regions } = layoutByCluster(merged);
   for (const p of merged) {
-    const l = layout.get(p.id);
+    const l = positions.get(p.id);
     p.pos = l.pos; p.scale = l.scale;
   }
 
@@ -62,7 +62,15 @@ async function main() {
   rmSync(OUT_POINTS, { recursive: true, force: true });
   mkdirSync(OUT_POINTS, { recursive: true });
   const pointsObj = {};
-  const index = { schema_version: '1.0', clusters, points: [] };
+  const index = {
+    schema_version: '1.0',
+    clusters: clusters.map((c) => ({
+      ...c,
+      polygon: regions[c.id]?.polygon ?? [],
+      labelPos: regions[c.id]?.labelPos ?? [2000, 1500],
+    })),
+    points: [],
+  };
   for (const p of merged) {
     delete p.ideologicalElement;
     pointsObj[p.id] = p;
