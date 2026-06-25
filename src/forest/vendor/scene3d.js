@@ -7,6 +7,13 @@ import * as THREE from "three";
 import { createTree } from "./tree_factory.js";
 
 const CANVAS_W = 4000, CANVAS_H = 3000;
+// 日间色调（我的世界式明亮白天）
+const HORIZON_COLOR = 0xbfe1f2;  // 地平线浅蓝（同时作雾色 / clearColor 兜底；带蓝让白云有对比）
+const ZENITH_COLOR = 0x3f8fdb;   // 天顶蓝
+const GROUND_COLOR = 0xe7e0cc;   // 地面米色（按用户提供色板）
+const GROUND_RADIUS = 18000;     // 圆盘地面半径（跟随相机，永远延伸到地平线、形成干净圆形天际线）
+const PHI_MAX = 1.50;            // 俯仰角上限：接近 π/2，配合抬头视线可仰望天空
+const LABEL_ZOOM_R = 3400;       // 相机距离小于此值才显示树标签（拉近看簇时），远景只靠悬停
 
 export class Scene3D {
     constructor(container, layout, data) {
@@ -17,20 +24,39 @@ export class Scene3D {
         this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.renderer.setSize(container.clientWidth, container.clientHeight);
-        this.renderer.setClearColor(0x0f0f23);
+        this.renderer.setClearColor(HORIZON_COLOR);
+        this.renderer.shadowMap.enabled = true;          // 阳光投影，给场景体积感
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.domElement.style.cssText = "position:absolute;top:0;left:0;";
         container.appendChild(this.renderer.domElement);
 
         this.scene = new THREE.Scene();
-        this.camera = new THREE.PerspectiveCamera(35, container.clientWidth / container.clientHeight, 10, 20000);
+        // 不用雾：靠「跟随相机的大圆盘地面 + 天空球」自然形成干净的开放世界圆形天际线
+        this.camera = new THREE.PerspectiveCamera(35, container.clientWidth / container.clientHeight, 10, 22000);
+        // 世界是 Z 朝上（地面 z=0，相机高度 cz=r·cos(phi)）；相机 up 必须用 +Z，
+        // 否则绕竖直轴自由旋转方位角(theta)时会退化/翻滚，水平朝向转不顺/看似没变。
+        this.camera.up.set(0, 0, 1);
         this.camera.position.set(CANVAS_W / 2, CANVAS_H / 2 + 1500, 2000);
         this.camera.lookAt(CANVAS_W / 2, CANVAS_H / 2, 0);
 
-        this.scene.add(new THREE.AmbientLight(0x404060, 0.5));
-        const sun = new THREE.DirectionalLight(0xfff8e8, 2.0);
-        sun.position.set(500, -500, 3000); this.scene.add(sun);
-        const fill = new THREE.DirectionalLight(0x8899cc, 0.5);
-        fill.position.set(3500, 3500, 1000); this.scene.add(fill);
+        // 白天日光：半球光给户外天/地自然补光 + 投影暖白阳光 + 少量环境光
+        // （半球/环境压低一点，让阳光阴影读得出来、场景有立体感而不发平）
+        this.scene.add(new THREE.HemisphereLight(0xbfe3ff, 0x73904a, 0.62));
+        this.scene.add(new THREE.AmbientLight(0xffffff, 0.24));
+        const sun = new THREE.DirectionalLight(0xfff4df, 1.45);
+        sun.position.set(CANVAS_W / 2 + 1900, CANVAS_H / 2 - 2700, 4400);
+        sun.target.position.set(CANVAS_W / 2, CANVAS_H / 2, 0);
+        this.scene.add(sun.target);
+        sun.castShadow = true;
+        sun.shadow.mapSize.set(2048, 2048);
+        sun.shadow.bias = -0.0006;
+        const sc = sun.shadow.camera;
+        sc.near = 200; sc.far = 9000; sc.left = -2700; sc.right = 2700; sc.top = 2700; sc.bottom = -2700;
+        this.scene.add(sun);
+
+        // 天空 + 云（在地图之前建，渲染顺序最底）
+        this._buildSky();
+        this._buildClouds();
 
         // 地图
         this.mapGroup = new THREE.Group(); this.scene.add(this.mapGroup);
@@ -64,32 +90,108 @@ export class Scene3D {
         this.highlightGroup.visible = false;
 
         this._needsVisRefresh = true;
+        this._hoverId = null;
         this._setupControls();
+    }
+
+    /* ============ 天空 / 云 ============ */
+    _buildSky() {
+        // 跟随相机的大天空球，按世界 Z 方向做天顶→地平线渐变
+        const geo = new THREE.SphereGeometry(15000, 32, 16);
+        const mat = new THREE.ShaderMaterial({
+            side: THREE.BackSide, depthWrite: false, fog: false,
+            uniforms: {
+                topColor: { value: new THREE.Color(ZENITH_COLOR) },
+                bottomColor: { value: new THREE.Color(HORIZON_COLOR) },
+            },
+            vertexShader: `
+                varying vec3 vDir;
+                void main() { vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }
+            `,
+            fragmentShader: `
+                uniform vec3 topColor; uniform vec3 bottomColor; varying vec3 vDir;
+                void main() {
+                    float h = clamp(vDir.z * 0.5 + 0.5, 0.0, 1.0);  // 世界 Z 仰角 0..1
+                    float t = pow(h, 0.55);                          // 蓝色偏上、地平线更浅
+                    gl_FragColor = vec4(mix(bottomColor, topColor, t), 1.0);
+                }
+            `,
+        });
+        this._sky = new THREE.Mesh(geo, mat);
+        this._sky.renderOrder = -1;
+        this.scene.add(this._sky);
+    }
+
+    _makeCloudTexture() {
+        const c = document.createElement("canvas"); c.width = c.height = 128;
+        const ctx = c.getContext("2d");
+        // 由几团柔和白斑叠成蓬松云
+        for (const [bx, by, br] of [[54, 70, 34], [78, 64, 30], [64, 78, 38], [40, 64, 24], [90, 76, 22]]) {
+            const g = ctx.createRadialGradient(bx, by, 2, bx, by, br);
+            g.addColorStop(0, "rgba(255,255,255,0.95)");
+            g.addColorStop(0.6, "rgba(255,255,255,0.55)");
+            g.addColorStop(1, "rgba(255,255,255,0)");
+            ctx.fillStyle = g; ctx.fillRect(0, 0, 128, 128);
+        }
+        const t = new THREE.CanvasTexture(c);
+        t.needsUpdate = true;
+        return t;
+    }
+
+    _buildClouds() {
+        const tex = this._makeCloudTexture();
+        this._clouds = [];
+        const N = 20;
+        for (let i = 0; i < N; i++) {
+            // 云挂在「跟随相机的地平线环」上：固定方位角 + 低仰角 + 远距离，
+            // 这样相机始终看向地面注视点时，云稳定地出现在地平线上方的天空带里（任意朝向都有）。
+            const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, fog: false, opacity: 0.95 }));
+            const sc = 2200 + ((i * 433) % 2600);
+            s.scale.set(sc, sc * 0.5, 1);
+            s.userData.az = (i * 2.39996) % (Math.PI * 2);           // 方位角（黄金角铺开）
+            s.userData.el = 0.04 + ((i * 311) % 1000) / 1000 * 0.42; // 仰角 ~2°..26°（贴地平线到中高空，抬头时也有云）
+            s.userData.dist = 9000 + ((i * 547) % 3500);             // 远距离（< 天空球 15000）
+            this.scene.add(s);
+            this._clouds.push(s);
+        }
     }
 
     /* ============ 地图 ============ */
     _buildGround() {
+        // 用「圆盘」而非方形平面：没有直边 / 直角，远端从任意方向都均匀雾化融入地平线，
+        // 形成连续的开放世界式圆形天际线（不再是会露出方块边的方形地面）。
         const g = new THREE.Mesh(
-            new THREE.PlaneGeometry(CANVAS_W, CANVAS_H),
-            new THREE.MeshBasicMaterial({ color: 0x1a1a2e, side: THREE.DoubleSide })
+            new THREE.CircleGeometry(GROUND_RADIUS, 96),
+            new THREE.MeshLambertMaterial({ color: GROUND_COLOR, side: THREE.DoubleSide })
         );
         g.position.set(CANVAS_W / 2, CANVAS_H / 2, -0.5);
+        g.receiveShadow = true;    // 承接树的投影
+        this._ground = g;          // render() 里跟随相机 xy，使地面始终延伸到地平线
         this.mapGroup.add(g);
+    }
+
+    // 凸包顶点 → 闭合 Catmull-Rom 平滑曲线（重采样为多点），让簇边界圆润不生硬
+    _smoothPolygon(pts, samples = 72) {
+        const v = pts.map(p => new THREE.Vector3(p[0], p[1], 0));
+        const curve = new THREE.CatmullRomCurve3(v, true, "catmullrom", 0.5);
+        return curve.getPoints(samples); // Vector3[]（首尾相接、闭合平滑）
     }
 
     _buildDomains() {
         for (const dom of this.layout.domains) {
             const pts = dom.polygon;
             if (pts.length < 3) continue;
+            const smooth = this._smoothPolygon(pts);
+            // 填充与描边用同一条平滑轮廓，边界吻合、无尖角
             const shape = new THREE.Shape();
-            shape.moveTo(pts[0][0], pts[0][1]);
-            for (let i = 1; i < pts.length; i++) shape.lineTo(pts[i][0], pts[i][1]);
+            shape.moveTo(smooth[0].x, smooth[0].y);
+            for (let i = 1; i < smooth.length; i++) shape.lineTo(smooth[i].x, smooth[i].y);
             shape.closePath();
             const geo = new THREE.ShapeGeometry(shape);
-            const fill = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: dom.color, transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false }));
+            const fill = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: dom.color, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false, fog: false }));
             fill.position.z = 0; this.mapGroup.add(fill);
-            const edge = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: dom.color, transparent: true, opacity: 0.35 }));
-            edge.position.z = 0.01; this.mapGroup.add(edge);
+            const edge = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(smooth), new THREE.LineBasicMaterial({ color: dom.color, transparent: true, opacity: 0.55, fog: false }));
+            edge.position.z = 0.02; this.mapGroup.add(edge);
         }
     }
 
@@ -99,11 +201,13 @@ export class Scene3D {
             if (!d) continue;
             const el = document.createElement("div");
             el.textContent = d.name_zh;
+            // 亮背景适配：簇色字压在深色半透明小底牌上，保留簇配色又清晰可读
             el.style.cssText =
                 `position:absolute;color:${dom.color};font-size:18px;font-weight:700;` +
                 `font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;` +
                 `text-align:center;transform:translate(-50%,-50%);white-space:nowrap;` +
-                `text-shadow:0 0 12px rgba(0,0,0,0.6);pointer-events:none;`;
+                `padding:2px 10px;border-radius:999px;background:rgba(17,28,42,0.62);` +
+                `box-shadow:0 1px 6px rgba(0,0,0,0.25);text-shadow:0 1px 2px rgba(0,0,0,0.55);pointer-events:none;`;
             this._labelLayer.appendChild(el);
             this._labelEls.push({ el, poly: dom.polygon });
         }
@@ -141,6 +245,14 @@ export class Scene3D {
         }
     }
 
+    // 簇 accent → 自然树冠色：保留色相做区分，降饱和 + 适度压暗，去掉糖果感
+    _mutedFoliage(hex) {
+        const c = new THREE.Color(hex);
+        const hsl = {}; c.getHSL(hsl);
+        c.setHSL(hsl.h, Math.min(hsl.s, 0.52), Math.min(Math.max(hsl.l * 0.86, 0.38), 0.52));
+        return "#" + c.getHexString();
+    }
+
     /* ============ 3D 树 ============ */
     _buildTrees() {
         const posMap = {};
@@ -152,17 +264,20 @@ export class Scene3D {
             const cat = this.data.catById[kp.category_id];
             const domId = cat ? cat.domain_id : null;
             const color = domId ? (this.layout.domains.find(d => d.id === domId) || {}).color || "#888" : "#888";
+            const foliage = this._mutedFoliage(color);  // 树冠用降饱和的自然色（保留簇色相做区分，不再糖果色）
             let seed = 0;
             for (let i = 0; i < kp.id.length; i++) seed = (seed * 31 + kp.id.charCodeAt(i)) & 0x7fffffff;
-            const tree = createTree({ seed, scale: imp * 300, domainColor: color, lod: "high" });
+            const tree = createTree({ seed, scale: imp * 300, domainColor: foliage, lod: "high" });
             tree.rotation.x = Math.PI / 2;
             tree.position.set(wx, wy, 0);
             tree.userData = { type: "tree", id: kp.id };
+            tree.traverse(c => { if (c.isMesh) c.castShadow = true; });  // 投影到地面
             this.highGroup.add(tree);
             const short = kp.name_zh.length > 8 ? kp.name_zh.slice(0, 8) + "…" : kp.name_zh;
             const lbl = document.createElement("div");
             lbl.textContent = short;
-            lbl.style.cssText = "position:absolute;color:#bbb;font-size:9px;text-align:center;transform:translate(-50%,-100%);white-space:nowrap;pointer-events:none;text-shadow:0 0 3px rgba(0,0,0,0.5);display:none;";
+            // 亮背景适配：深字 + 白色光晕，压在草地/天空上都清晰
+            lbl.style.cssText = "position:absolute;color:#16321f;font-size:9px;font-weight:600;text-align:center;transform:translate(-50%,-100%);white-space:nowrap;pointer-events:none;text-shadow:0 0 3px #fff,0 0 3px #fff,0 1px 2px rgba(255,255,255,0.9);display:none;";
             this._labelLayer.appendChild(lbl);
             this.treeMeta.push({ id: kp.id, catId: kp.category_id, pos: [wx, wy], mesh: tree, seed, scale: imp, domainColor: color, importance: kp.importance || 0.5, label: lbl });
         }
@@ -170,38 +285,69 @@ export class Scene3D {
 
     /* ============ 相机控制 ============ */
     _setupControls() {
-        this._state = { theta: -Math.PI / 2, r: 5000, target: { x: CANVAS_W / 2, y: CANVAS_H / 2 } };
-        this._ROT = { thetaMin: -Math.PI / 2 - 0.3, thetaMax: -Math.PI / 2 + 0.3 };
+        this._computeBestView();
+        const b = this._best;
+        this._state = { theta: b.theta, phi: b.phi, r: b.r, target: { x: b.target.x, y: b.target.y } };
+        // 方位角 theta 不夹紧：右键左右拖动可绕森林 360° 自由旋转水平朝向
+        // 俯仰角范围：收紧到自然区间——下限不再接近正俯视(0.35→0.62)，上限仍可抬头仰望天空(略收 1.50→1.44)
+        this._PHI = { min: 0.62, max: 1.44 };
         const el = this.container;
+        // 用 Pointer Events + setPointerCapture：右键拖动也能可靠地持续收到 move 事件
+        // （比 mousedown/window-mousemove 更稳，避免真实浏览器里右键拖动丢 move）。
+        this._listeners = [];
+        const on = (target, type, fn, opts) => { target.addEventListener(type, fn, opts); this._listeners.push([target, type, fn, opts]); };
 
-        el.addEventListener("mousedown", e => {
-            if (e.target.closest(".facet-panel,input,button")) return;
+        const onPointerDown = e => {
+            if (e.target.closest && e.target.closest(".facet-panel,input,button,select,a")) return;
             this._state.isDragging = true;
+            this._state.pointerId = e.pointerId;
             this._state.ds = { x: e.clientX, y: e.clientY };
             this._state._dtx = this._state.target.x;
             this._state._dty = this._state.target.y;
             this._state._dth = this._state.theta;
+            this._state._dph = this._state.phi;
+            // 右键 / Ctrl / Meta = 旋转视角；左键 = 平移
             this._state._rot = (e.button === 2 || e.ctrlKey || e.metaKey);
-        });
-        el.addEventListener("contextmenu", e => e.preventDefault());
-
-        window.addEventListener("mousemove", e => {
-            if (!this._state.isDragging) return;
+            try { el.setPointerCapture(e.pointerId); } catch { /* 非指针环境忽略 */ }
+        };
+        const onPointerMove = e => {
+            if (!this._state.isDragging || e.pointerId !== this._state.pointerId) return;
             const dx = e.clientX - this._state.ds.x, dy = e.clientY - this._state.ds.y;
             if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
             if (this._state._rot) {
-                this._state.theta = Math.max(this._ROT.thetaMin, Math.min(this._ROT.thetaMax, this._state._dth - dx * 0.002));
+                // dx 调方位角：左右拖动绕森林自由旋转水平朝向（像地图罗盘，朝北→朝西→朝南，不夹紧）
+                this._state.theta = this._state._dth - dx * 0.004;
+                // dy 调俯仰角：上滑(dy<0)拉低视角(更贴地平线,phi↑)，下滑(dy>0)拉高视角(更俯视,phi↓)
+                this._state.phi = Math.max(this._PHI.min, Math.min(this._PHI.max, this._state._dph - dy * 0.0035));
             } else {
+                // 左键平移：把屏幕拖拽量按当前朝向 theta 投影到地面，使平移方向跟手（转向后也一致）
                 const s = this._state.r / 1500;
-                this._state.target.x = this._state._dtx - dx * s;
-                this._state.target.y = this._state._dty + dy * s;
+                const th = this._state.theta;
+                const sin = Math.sin(th), cos = Math.cos(th);
+                const rx = -sin, ry = cos;   // 屏幕右方向在地面的投影
+                const fx = -cos, fy = -sin;  // 屏幕前(上滑)方向在地面的投影
+                const nx = this._state._dtx - dx * s * rx + dy * s * fx;
+                const ny = this._state._dty - dx * s * ry + dy * s * fy;
+                const c = this._clampTarget(nx, ny);
+                this._state.target.x = c.x;
+                this._state.target.y = c.y;
             }
             this._updateCamera();
-        });
+        };
+        const onPointerUp = e => {
+            if (e.pointerId === this._state.pointerId) {
+                this._state.isDragging = false;
+                this._state.pointerId = null;
+                try { el.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+            }
+        };
 
-        window.addEventListener("mouseup", () => this._state.isDragging = false);
-
-        el.addEventListener("wheel", e => {
+        on(el, "pointerdown", onPointerDown);
+        on(el, "pointermove", onPointerMove);
+        on(el, "pointerup", onPointerUp);
+        on(el, "pointercancel", onPointerUp);
+        on(el, "contextmenu", e => e.preventDefault());
+        on(el, "wheel", e => {
             e.preventDefault();
             this._state.r *= (e.deltaY > 0 ? 1.04 : 0.96);
             this._state.r = Math.max(250, Math.min(12000, this._state.r));
@@ -212,14 +358,26 @@ export class Scene3D {
         this._updateCamera();
     }
 
+    // 解绑所有事件监听（供 React 卸载时调用，避免 StrictMode 双挂载残留重复监听）
+    dispose() {
+        if (this._listeners) for (const [t, type, fn, opts] of this._listeners) t.removeEventListener(type, fn, opts);
+        this._listeners = [];
+    }
+
     _updateCamera() {
         const s = this._state;
-        s.phi = 0.7 + 0.5 * Math.min(1, s.r / 4000);
-        const cx = s.target.x + s.r * Math.sin(s.phi) * Math.cos(s.theta);
-        const cy = s.target.y + s.r * Math.sin(s.phi) * Math.sin(s.theta);
+        // phi 现为用户可控的独立状态（不再随 r 自动推导）；兜底默认值
+        if (s.phi == null) s.phi = 0.95;
+        const D = s.r * Math.sin(s.phi);
         const cz = s.r * Math.cos(s.phi);
+        const cx = s.target.x + D * Math.cos(s.theta);
+        const cy = s.target.y + D * Math.sin(s.theta);
         this.camera.position.set(cx, cy, cz);
-        this.camera.lookAt(s.target.x, s.target.y, 0);
+        // 视线俯仰随 phi 连续变化：phi≤1.0 看地面(俯视森林) → 渐过地平线 → phi→PHI_MAX 抬头仰望天空。
+        // 通过抬高 lookAt 的 Z 实现「看向地面之上」，相机本身始终在地面之上。
+        const t = Math.min(1, Math.max(0, (s.phi - 1.0) / (PHI_MAX - 1.0)));
+        const lookZ = t * (cz + D * Math.tan(0.55));  // t=1 时视线约 +28° 仰望天空
+        this.camera.lookAt(s.target.x, s.target.y, lookZ);
 
         // 树大小 = 视口宽度 × 5%
         const visW = s.r * 0.7;
@@ -286,13 +444,26 @@ export class Scene3D {
             if (far) visible.add(m.id);
         }
 
+        // 标签默认不全开：仅在拉近(r 较小)时显示可见树标签，避免远景一片标签糊住画面
+        this._labelsShown = r < LABEL_ZOOM_R;
         this.highGroup.visible = true;
         for (const m of this.treeMeta) {
             const show = visible.has(m.id);
             m.mesh.visible = show;
-            if (m.label) m.label.style.display = show ? "" : "none";
+            if (m.label) m.label.style.display = (show && (this._labelsShown || m.id === this._hoverId)) ? "" : "none";
         }
         // 立即更新标签位置
+        this._updateLabelPositions();
+    }
+
+    // 悬停某棵树时单独显示它的标签（远景默认隐藏标签，靠悬停做发现性）
+    setHover(id) {
+        if (id === this._hoverId) return;
+        const prev = this._hoverId && this.treeMeta.find(m => m.id === this._hoverId);
+        if (prev && prev.label && !this._labelsShown) prev.label.style.display = "none";
+        this._hoverId = id || null;
+        const cur = id && this.treeMeta.find(m => m.id === id);
+        if (cur && cur.label && cur.mesh.visible) cur.label.style.display = "";
         this._updateLabelPositions();
     }
 
@@ -323,7 +494,24 @@ export class Scene3D {
     }
 
     /* ============ 公共接口 ============ */
-    render() { this.renderer.render(this.scene, this.camera); }
+    render() {
+        // 天空球跟随相机，永远在背景、不被裁剪
+        if (this._sky) this._sky.position.copy(this.camera.position);
+        // 地面跟随相机 xy（高度不变），使圆盘永远延伸到地平线、不露出边缘（替代雾的天际线方案）
+        if (this._ground) this._ground.position.set(this.camera.position.x, this.camera.position.y, -0.5);
+        // 云挂在跟随相机的地平线环上，缓慢绕方位角飘动，始终位于地平线上方天空带
+        if (this._clouds) {
+            this._frame = (this._frame || 0) + 1;
+            const cam = this.camera.position;
+            for (const s of this._clouds) {
+                const az = s.userData.az + this._frame * 0.00004;
+                const el = s.userData.el, d = s.userData.dist;
+                const ce = Math.cos(el);
+                s.position.set(cam.x + Math.cos(az) * ce * d, cam.y + Math.sin(az) * ce * d, cam.z + Math.sin(el) * d);
+            }
+        }
+        this.renderer.render(this.scene, this.camera);
+    }
     resize(w, h) {
         this.renderer.setSize(w, h);
         this.camera.aspect = w / h;
@@ -403,15 +591,16 @@ export class Scene3D {
                 tx = meta.mesh.position.x;
                 ty = meta.mesh.position.y;
             }
-            this._state.target.x = tx;
-            this._state.target.y = ty;
+            const c = this._clampTarget(tx, ty);
+            this._state.target.x = c.x;
+            this._state.target.y = c.y;
             this._state.r = 800;
             this._needsVisRefresh = true;
             this._updateCamera();
             return;
         }
         const cr = this.layout.categories.find(c => c.id === kpId);
-        if (cr && cr.label_pos) { this._state.target.x = cr.label_pos[0]; this._state.target.y = cr.label_pos[1]; this._state.r = 2500; this._needsVisRefresh = true; this._updateCamera(); }
+        if (cr && cr.label_pos) { const c = this._clampTarget(cr.label_pos[0], cr.label_pos[1]); this._state.target.x = c.x; this._state.target.y = c.y; this._state.r = 2500; this._needsVisRefresh = true; this._updateCamera(); }
     }
 
     highlightTree(kpId) {
@@ -447,7 +636,85 @@ export class Scene3D {
     }
 
     unhighlightAll() { this._clearGroup(this.highlightGroup); this.highlightGroup.visible = false; }
-    resetView() { this._state.theta = -Math.PI / 2; this._state.r = 5000; this._needsVisRefresh = true; this._updateCamera(); }
+
+    // 由内容包围盒推导：平移限位框 _panBox + 最佳视角 _best（框住整片森林、居中、舒服倾斜）
+    _computeBestView() {
+        const pts = this.layout.points || [];
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        for (const p of pts) {
+            const x = p.pos[0], y = p.pos[1];
+            if (x < minX) minX = x; if (x > maxX) maxX = x;
+            if (y < minY) minY = y; if (y > maxY) maxY = y;
+        }
+        if (!isFinite(minX)) { minX = 0; maxX = CANVAS_W; minY = 0; maxY = CANVAS_H; }
+        const spanX = maxX - minX, spanY = maxY - minY;
+        // 平移限位：内容包围盒外扩 ~15% 边距（随布局自适应，不写死）
+        const mx = spanX * 0.15, my = spanY * 0.15;
+        this._panBox = { minX: minX - mx, maxX: maxX + mx, minY: minY - my, maxY: maxY + my };
+        const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+        // 距离按 FOV 反算，使竖直与水平跨度都框得住，再留边距
+        const r = this._frameRadius(spanX, spanY, 1.12);
+        // phi 默认自然 3/4 俯视森林、露出一小截天空；用户右键上拖可继续抬头直到仰望天空
+        this._best = { theta: -Math.PI / 2, phi: 1.0, r, target: { x: cx, y: cy } };
+    }
+
+    // 按相机 FOV + 画面比例反算「恰好框住给定地面跨度」所需距离 r（×factor 留边距）
+    _frameRadius(spanX, spanY, factor = 1.05) {
+        const fov = this.camera.fov * Math.PI / 180;
+        const aspect = this.camera.aspect || 1.4;
+        const rY = spanY / (2 * Math.tan(fov / 2));
+        const rX = spanX / (2 * Math.tan(fov / 2) * aspect);
+        return Math.max(rY, rX) * factor;
+    }
+
+    // 跳转到某个知识簇：框住该簇全部知识点的范围（图例 / 下拉用，23 簇都稳定生效）
+    flyToCluster(clusterId) {
+        const members = this.treeMeta.filter(m => m.catId === clusterId);
+        if (!members.length) {
+            // 兜底：用 domain 标签位（适配器为 23 簇都填了 label_pos）
+            const cr = this.layout.categories.find(c => c.id === clusterId) || this.layout.domains.find(d => d.id === clusterId);
+            const lp = cr && (cr.label_pos);
+            if (lp) { const c = this._clampTarget(lp[0], lp[1]); this._state.target.x = c.x; this._state.target.y = c.y; this._state.r = 2500; this._needsVisRefresh = true; this._updateCamera(); }
+            return;
+        }
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        for (const m of members) {
+            const x = m.pos[0], y = m.pos[1];
+            if (x < minX) minX = x; if (x > maxX) maxX = x;
+            if (y < minY) minY = y; if (y > maxY) maxY = y;
+        }
+        const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+        // 框住该簇 + 少量上下文边距；夹在 [合理下限, 整片森林距离] 之间，避免过近/过远
+        let r = this._frameRadius(maxX - minX, maxY - minY, 1.6);
+        const maxR = (this._best && this._best.r) || 6000;
+        r = Math.max(900, Math.min(maxR, r));
+        const c = this._clampTarget(cx, cy);
+        this._state.target.x = c.x;
+        this._state.target.y = c.y;
+        this._state.r = r;
+        // 俯仰/朝向沿用当前视角，保持观感一致（不每次跳转翻转角度）
+        this._needsVisRefresh = true;
+        this._updateCamera();
+    }
+
+    _clampTarget(x, y) {
+        const b = this._panBox;
+        if (!b) return { x, y };
+        return { x: Math.max(b.minX, Math.min(b.maxX, x)), y: Math.max(b.minY, Math.min(b.maxY, y)) };
+    }
+
+    // 重置 / 初始「最佳视角」：显式设定 theta/phi/r/target 四量，并复位 target（修复旧 bug）
+    resetView() {
+        const b = this._best || { theta: -Math.PI / 2, phi: 0.9, r: 5000, target: { x: CANVAS_W / 2, y: CANVAS_H / 2 } };
+        this._state.theta = b.theta;
+        this._state.phi = b.phi;
+        this._state.r = b.r;
+        const c = this._clampTarget(b.target.x, b.target.y);
+        this._state.target.x = c.x;
+        this._state.target.y = c.y;
+        this._needsVisRefresh = true;
+        this._updateCamera();
+    }
 
     _clearGroup(g) { while (g.children.length > 0) g.remove(g.children[0]); }
 }

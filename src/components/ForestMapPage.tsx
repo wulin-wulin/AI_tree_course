@@ -13,7 +13,7 @@ function ForestMapPage() {
   const index = FOREST_INDEX;
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const sceneRef = useRef<{ render: () => void; resize: (w: number, h: number) => void; raycast: (x: number, y: number) => string | null; flyTo: (id: string) => void; resetView: () => void } | null>(null);
+  const sceneRef = useRef<{ render: () => void; resize: (w: number, h: number) => void; raycast: (x: number, y: number) => string | null; flyTo: (id: string) => void; flyToCluster: (id: string) => void; resetView: () => void; setHover: (id: string | null) => void; dispose: () => void } | null>(null);
   const [query, setQuery] = useState('');
 
   const clusterById = useMemo(() => {
@@ -57,17 +57,38 @@ function ForestMapPage() {
     window.addEventListener('resize', onResize);
     requestAnimationFrame(onResize);
 
+    // 区分「点击」与「拖拽」：拖拽（平移/转视角）松手不应误触发进入阅读页
+    let downX = 0;
+    let downY = 0;
+    let dragging = false;
+    const onPointerDown = (e: PointerEvent) => { downX = e.clientX; downY = e.clientY; dragging = true; };
     const onClick = (e: MouseEvent) => {
+      if (Math.abs(e.clientX - downX) > 6 || Math.abs(e.clientY - downY) > 6) return; // 发生了拖拽，忽略
       const id = scene.raycast(e.clientX, e.clientY);
       if (id) openReadingRef.current(id);
     };
+    // 悬停高亮：远景默认隐藏树标签，鼠标移到某棵树时单独显示它的名字 + 手型光标
+    const onPointerMove = (e: PointerEvent) => {
+      if (dragging) return;
+      const id = scene.raycast(e.clientX, e.clientY);
+      scene.setHover(id);
+      el.style.cursor = id ? 'pointer' : '';
+    };
+    const onPointerUpHover = () => { dragging = false; };
+    el.addEventListener('pointerdown', onPointerDown);
+    el.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUpHover);
     el.addEventListener('click', onClick);
 
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', onResize);
+      el.removeEventListener('pointerdown', onPointerDown);
+      el.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUpHover);
       el.removeEventListener('click', onClick);
-      el.replaceChildren(); // 清空 Scene3D 注入的 canvas/标签层（含 StrictMode 双挂载）
+      scene.dispose(); // 解绑 Scene3D 的指针/滚轮监听，避免 StrictMode 双挂载残留
+      el.replaceChildren(); // 清空 Scene3D 注入的 canvas/标签层
       sceneRef.current = null;
     };
   }, [index]);
@@ -104,7 +125,7 @@ function ForestMapPage() {
         <select
           className="forest-region-select"
           value=""
-          onChange={(e) => { const c = e.target.value; if (c) sceneRef.current?.flyTo(c); }}
+          onChange={(e) => { const c = e.target.value; if (c) sceneRef.current?.flyToCluster(c); }}
         >
           <option value="">— 跳到知识簇 —</option>
           {index.clusters.map((c) => (
@@ -120,7 +141,7 @@ function ForestMapPage() {
         <h4>知识簇</h4>
         <div className="forest-legend-list">
           {index.clusters.map((c) => (
-            <button key={c.id} type="button" className="forest-legend-item" onClick={() => sceneRef.current?.flyTo(c.id)}>
+            <button key={c.id} type="button" className="forest-legend-item" onClick={() => sceneRef.current?.flyToCluster(c.id)}>
               <span className="forest-legend-color" style={{ background: c.accent }} />
               {c.title} <small>({countByCluster[c.id] || 0})</small>
             </button>

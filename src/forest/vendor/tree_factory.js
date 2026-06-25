@@ -34,77 +34,88 @@ function varyColor(hex, rand, amount = 0.12) {
     return `#${hr}${hg}${hb}`;
 }
 
+const TRUNK_COLOR = "#6b4a2f";
+
+function foliageMat(color) {
+    return new THREE.MeshStandardMaterial({ color, roughness: 0.78, flatShading: true });
+}
+
+// 锥度树干（底粗顶细），返回树干高度
+function addTrunk(group, h, frac, rBottom) {
+    const th = h * frac;
+    const geo = new THREE.CylinderGeometry(rBottom * 0.55, rBottom, th, 6);
+    const trunk = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: TRUNK_COLOR, roughness: 0.9, flatShading: true }));
+    trunk.position.y = th / 2;
+    group.add(trunk);
+    return th;
+}
+
 /**
- * 主入口
+ * 主入口：按 seed 确定性地从几种自然树型中挑一种（针叶松 / 阔叶圆冠 / 高瘦杨树），
+ * 低多边形 + 平面着色，保持轻量与统一画风，但读起来明确是「树」而非几何块。
  */
 export function createTree({ seed, scale, domainColor, lod }) {
-    // scale 范围 ~12–40（来自 trees3d: importance * 20）
-    // 地图 4000px ≈ 30000m，即 1 世界单位 ≈ 0.133px（zoom=1时）
-    // 树高 ≈ scale 世界单位 ≈ 1.6–5.3px（zoom=1），放大时可看清楚
     const rand = seededRandom(seed);
-    const h = scale;                      // 树总高（世界坐标）
-    const canopyColor = varyColor(domainColor, rand, 0.1);
+    const h = scale;                      // 树总高（世界坐标，Y 朝上；调用方再转成世界 Z 朝上）
+    const canopyColor = varyColor(domainColor, rand, 0.06);
     const group = new THREE.Group();
 
-    /* ── LOW LOD: 单锥 ── */
+    /* ── LOW LOD: 树干 + 单个圆润树冠 ── */
     if (lod === "low") {
-        const coneH = h * 0.7;
-        const coneR = h * 0.25;
-        const coneGeo = new THREE.ConeGeometry(coneR, coneH, 4);
-        const coneMat = new THREE.MeshStandardMaterial({ color: canopyColor, roughness: 0.5, flatShading: true });
-        const cone = new THREE.Mesh(coneGeo, coneMat);
-        cone.position.y = coneH / 2;
-        cone.rotation.y = rand() * Math.PI;
-        group.add(cone);
-
-        const trunkH = h * 0.3;
-        const trunkR = h * 0.06;
-        const trunkGeo = new THREE.CylinderGeometry(trunkR * 0.6, trunkR, trunkH, 3);
-        const trunk = new THREE.Mesh(trunkGeo, new THREE.MeshStandardMaterial({ color: "#5D4037", roughness: 0.7 }));
-        trunk.position.y = trunkH / 2;
-        group.add(trunk);
-
+        const th = addTrunk(group, h, 0.3, h * 0.05);
+        const r = h * 0.3;
+        const blob = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 0), foliageMat(canopyColor));
+        blob.position.y = th + r * 0.7;
+        group.add(blob);
         group.rotation.y = rand() * Math.PI * 2;
         return group;
     }
 
-    /* ── 树干：五棱台，细长 ── */
-    const trunkH = h * 0.55;
-    const trunkBottom = h * 0.05;
-    const trunkTop = trunkBottom * 0.4;
-    const trunkGeo = new THREE.CylinderGeometry(trunkTop, trunkBottom, trunkH, 5);
-    const trunkMat = new THREE.MeshStandardMaterial({ color: "#5D4037", roughness: 0.65 });
-    const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-    trunk.position.y = trunkH / 2;
-    group.add(trunk);
+    const detail = lod === "high" ? 1 : 0;   // high 用细分球，更圆润；medium 保持粗面
+    const archetype = rand();
 
-    /* ── 树冠 ── */
-    const canopyBase = trunkH;
-
-    // 下层：二十面体（大冠）
-    const icoR = h * 0.34;
-    const icoGeo = new THREE.IcosahedronGeometry(icoR, 0);
-    const lowerColor = varyColor(canopyColor, rand, 0.08);
-    const lower = new THREE.Mesh(
-        icoGeo,
-        new THREE.MeshStandardMaterial({ color: lowerColor, roughness: 0.5, flatShading: true })
-    );
-    lower.position.set(0, canopyBase + icoR * 0.7, 0);
-    lower.rotation.set(rand() * 0.2, rand() * Math.PI * 2, rand() * 0.15);
-    group.add(lower);
-
-    if (lod === "high") {
-        // 上层：十二面体（仅 high LOD）
-        const dodR = h * 0.26;
-        const dodGeo = new THREE.DodecahedronGeometry(dodR, 0);
-        const upperColor = varyColor(canopyColor, rand, 0.12);
-        const upper = new THREE.Mesh(
-            dodGeo,
-            new THREE.MeshStandardMaterial({ color: upperColor, roughness: 0.5, flatShading: true })
-        );
-        upper.position.set(0, canopyBase + icoR * 1.25, 0);
-        upper.rotation.set(0.15 + rand() * 0.15, 0.3 + rand() * 0.4, 0.1 + rand() * 0.1);
-        group.add(upper);
+    if (archetype < 0.4) {
+        /* ── 针叶松：多层堆叠圆锥（经典三角松树） ── */
+        const th = addTrunk(group, h, 0.24, h * 0.05);
+        const tiers = lod === "high" ? 3 : 2;
+        const baseR = h * 0.32;
+        const tierH = h * 0.42;
+        const tColor = varyColor(canopyColor, rand, 0.05);
+        let y = th * 0.92;
+        for (let i = 0; i < tiers; i++) {
+            const f = i / tiers;
+            const r = baseR * (1 - f * 0.5);
+            const cone = new THREE.Mesh(new THREE.ConeGeometry(r, tierH, 7), foliageMat(varyColor(tColor, rand, 0.05)));
+            cone.position.y = y + tierH * 0.4;
+            cone.rotation.y = rand() * Math.PI;
+            group.add(cone);
+            y += tierH * 0.42;
+        }
+    } else if (archetype < 0.75) {
+        /* ── 阔叶圆冠：主冠 + 顶部小冠，圆润饱满 ── */
+        const th = addTrunk(group, h, 0.4, h * 0.055);
+        const r = h * 0.33;
+        const main = new THREE.Mesh(new THREE.IcosahedronGeometry(r, detail), foliageMat(canopyColor));
+        main.position.y = th + r * 0.7;
+        main.scale.set(1, 0.92, 1);
+        main.rotation.set(rand() * 0.4, rand() * Math.PI * 2, rand() * 0.4);
+        group.add(main);
+        if (lod === "high") {
+            const r2 = r * 0.6;
+            const top = new THREE.Mesh(new THREE.IcosahedronGeometry(r2, detail), foliageMat(varyColor(canopyColor, rand, 0.1)));
+            top.position.set((rand() - 0.5) * r * 0.5, th + r * 1.2, (rand() - 0.5) * r * 0.5);
+            top.rotation.y = rand() * Math.PI;
+            group.add(top);
+        }
+    } else {
+        /* ── 高瘦杨树：纵向拉长的椭圆冠 ── */
+        const th = addTrunk(group, h, 0.5, h * 0.045);
+        const r = h * 0.2;
+        const canopy = new THREE.Mesh(new THREE.IcosahedronGeometry(r, detail), foliageMat(canopyColor));
+        canopy.position.y = th + r * 1.35;
+        canopy.scale.set(1, 1.9, 1);
+        canopy.rotation.y = rand() * Math.PI;
+        group.add(canopy);
     }
 
     group.rotation.y = rand() * Math.PI * 2;
