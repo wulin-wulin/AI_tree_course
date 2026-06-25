@@ -276,8 +276,9 @@ export class Scene3D {
             const short = kp.name_zh.length > 8 ? kp.name_zh.slice(0, 8) + "…" : kp.name_zh;
             const lbl = document.createElement("div");
             lbl.textContent = short;
-            // 亮背景适配：深字 + 白色光晕，压在草地/天空上都清晰
-            lbl.style.cssText = "position:absolute;color:#16321f;font-size:9px;font-weight:600;text-align:center;transform:translate(-50%,-100%);white-space:nowrap;pointer-events:none;text-shadow:0 0 3px #fff,0 0 3px #fff,0 1px 2px rgba(255,255,255,0.9);display:none;";
+            lbl.title = kp.name_zh;
+            lbl.className = "forest-tree-label";
+            lbl.style.display = "none";
             this._labelLayer.appendChild(lbl);
             this.treeMeta.push({ id: kp.id, catId: kp.category_id, pos: [wx, wy], mesh: tree, seed, scale: imp, domainColor: color, importance: kp.importance || 0.5, label: lbl });
         }
@@ -450,7 +451,11 @@ export class Scene3D {
         for (const m of this.treeMeta) {
             const show = visible.has(m.id);
             m.mesh.visible = show;
-            if (m.label) m.label.style.display = (show && (this._labelsShown || m.id === this._hoverId)) ? "" : "none";
+            if (m.label) {
+                const showLabel = show && (this._labelsShown || m.id === this._hoverId);
+                m.label.style.display = showLabel ? "" : "none";
+                m.label.classList.toggle("is-hovered", m.id === this._hoverId);
+            }
         }
         // 立即更新标签位置
         this._updateLabelPositions();
@@ -460,10 +465,16 @@ export class Scene3D {
     setHover(id) {
         if (id === this._hoverId) return;
         const prev = this._hoverId && this.treeMeta.find(m => m.id === this._hoverId);
-        if (prev && prev.label && !this._labelsShown) prev.label.style.display = "none";
+        if (prev && prev.label) {
+            prev.label.classList.remove("is-hovered");
+            if (!this._labelsShown) prev.label.style.display = "none";
+        }
         this._hoverId = id || null;
         const cur = id && this.treeMeta.find(m => m.id === id);
-        if (cur && cur.label && cur.mesh.visible) cur.label.style.display = "";
+        if (cur && cur.label && cur.mesh.visible) {
+            cur.label.classList.add("is-hovered");
+            cur.label.style.display = "";
+        }
         this._updateLabelPositions();
     }
 

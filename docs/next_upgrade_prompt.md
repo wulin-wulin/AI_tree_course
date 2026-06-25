@@ -7,17 +7,17 @@
 1. `docs/requirements/README.md`
 2. `docs/requirements/AGENT_PROTOCOL.md`
 3. `docs/requirements/current_state.md`
-4. `docs/requirements/rounds/R013_forest_minecraft_palette.md`
+4. `docs/requirements/rounds/R014_forest_label_legend_chrome_polish.md`
 
 ## 当前执行轮次
 
-`R013`（状态：`Ready`，**可实现**）
+`R014`（状态：`Ready`，**可实现**）
 
-> R001–R011 已 `Accepted`；R012（簇跳转修复 + 默认视角放平）已 `Implemented`、待审核。**R013：只聚焦 `/ai` 森林场景观感**——①把知识簇生硬折线边缘改为柔和曲线（`_buildDomains` 用 Catmull-Rom 平滑闭合轮廓）；②参照《我的世界》明亮日间色调改造场景：黄褐含绿草地 + 蓝天白云 + 天际线/地平线（雾化）+ 白天灯光，并重调标签在亮背景上的可读性。已确认：**亮色调氛围、非体素**；树与簇配色保留；chrome 保持深色玻璃。详见轮次文档。不动数据/布局/相机交互/阅读页/首页。
+> R001–R013 已结束并归档为 `Accepted`。**R014：只聚焦 `/ai` 森林页 UI polish**——优化知识点名称标签显示方案；把左下知识簇导览窗口做成可拖动、可隐藏/恢复；将顶部栏与知识簇导览窗口改为与首页更协调的白色/浅色 UI。不要改数据、布局算法、相机交互、阅读页、首页或 R013 的天空/地面/树形场景本体。详见轮次文档。
 
 ## 实现完成后请自检视觉（UI 改动适用）
 
-涉及界面/视觉的改动，完成后请用项目 Playwright 截图工作流截取相关页面（本轮为 `/#/ai`），**自己查看截图核对效果**，按需微调迭代后再报告完成。详见 `docs/requirements/AGENT_PROTOCOL.md` 执行流程。
+涉及界面/视觉的改动，完成后请用项目 Playwright 截图工作流截取相关页面（本轮为 `/#/ai` 的默认全景、知识点标签近景/悬停、导览窗拖动与隐藏/恢复状态），**自己查看截图核对效果**，按需微调迭代后再报告完成。详见 `docs/requirements/AGENT_PROTOCOL.md` 执行流程。
 
 ## 执行规则
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 // @ts-expect-error vendor JS（参考项目原样）
 import { Scene3D } from '../forest/vendor/scene3d.js';
@@ -13,8 +13,18 @@ function ForestMapPage() {
   const index = FOREST_INDEX;
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const legendRef = useRef<HTMLDivElement | null>(null);
+  const legendDragRef = useRef<{
+    pointerId: number;
+    offsetX: number;
+    offsetY: number;
+    width: number;
+    height: number;
+  } | null>(null);
   const sceneRef = useRef<{ render: () => void; resize: (w: number, h: number) => void; raycast: (x: number, y: number) => string | null; flyTo: (id: string) => void; flyToCluster: (id: string) => void; resetView: () => void; setHover: (id: string | null) => void; dispose: () => void } | null>(null);
   const [query, setQuery] = useState('');
+  const [legendHidden, setLegendHidden] = useState(false);
+  const [legendPosition, setLegendPosition] = useState<{ x: number; y: number } | null>(null);
 
   const clusterById = useMemo(() => {
     const m: Record<string, ClusterMeta> = {};
@@ -99,6 +109,49 @@ function ForestMapPage() {
     return index.points.filter((p) => p.title.toLowerCase().includes(q)).slice(0, 12);
   }, [query, index]);
 
+  const clampLegendPosition = (x: number, y: number, width: number, height: number) => {
+    const margin = 12;
+    const topLimit = 58;
+    const maxX = Math.max(margin, window.innerWidth - width - margin);
+    const maxY = Math.max(topLimit, window.innerHeight - height - margin);
+    return {
+      x: Math.min(Math.max(margin, x), maxX),
+      y: Math.min(Math.max(topLimit, y), maxY),
+    };
+  };
+
+  const startLegendDrag = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('button')) return;
+    const panel = legendRef.current;
+    if (!panel) return;
+    const rect = panel.getBoundingClientRect();
+    legendDragRef.current = {
+      pointerId: e.pointerId,
+      offsetX: e.clientX - rect.left,
+      offsetY: e.clientY - rect.top,
+      width: rect.width,
+      height: rect.height,
+    };
+    setLegendPosition({ x: rect.left, y: rect.top });
+    e.currentTarget.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  };
+
+  const moveLegendDrag = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = legendDragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    const pos = clampLegendPosition(e.clientX - drag.offsetX, e.clientY - drag.offsetY, drag.width, drag.height);
+    setLegendPosition(pos);
+    e.preventDefault();
+  };
+
+  const endLegendDrag = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = legendDragRef.current;
+    if (!drag || drag.pointerId !== e.pointerId) return;
+    legendDragRef.current = null;
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+  };
+
   return (
     <main id="main-content" className="forest-parity-page" aria-label="人工智能知识森林">
       <header id="forest-topbar">
@@ -137,17 +190,39 @@ function ForestMapPage() {
 
       <div id="forest-canvas-container" ref={containerRef} />
 
-      <div id="forest-legend">
-        <h4>知识簇</h4>
-        <div className="forest-legend-list">
-          {index.clusters.map((c) => (
-            <button key={c.id} type="button" className="forest-legend-item" onClick={() => sceneRef.current?.flyToCluster(c.id)}>
-              <span className="forest-legend-color" style={{ background: c.accent }} />
-              {c.title} <small>({countByCluster[c.id] || 0})</small>
+      {!legendHidden ? (
+        <div
+          id="forest-legend"
+          ref={legendRef}
+          style={legendPosition ? { left: legendPosition.x, top: legendPosition.y, bottom: 'auto' } : undefined}
+        >
+          <div
+            className="forest-legend-header"
+            onPointerDown={startLegendDrag}
+            onPointerMove={moveLegendDrag}
+            onPointerUp={endLegendDrag}
+            onPointerCancel={endLegendDrag}
+          >
+            <h4>知识簇</h4>
+            <button type="button" className="forest-legend-hide" aria-label="隐藏知识簇导览" onClick={() => setLegendHidden(true)}>
+              隐藏
             </button>
-          ))}
+          </div>
+          <div className="forest-legend-list">
+            {index.clusters.map((c) => (
+              <button key={c.id} type="button" className="forest-legend-item" onClick={() => sceneRef.current?.flyToCluster(c.id)}>
+                <span className="forest-legend-color" style={{ background: c.accent }} />
+                <span className="forest-legend-name">{c.title}</span>
+                <small>({countByCluster[c.id] || 0})</small>
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      ) : (
+        <button type="button" className="forest-legend-restore" aria-label="恢复知识簇导览" onClick={() => setLegendHidden(false)}>
+          知识簇
+        </button>
+      )}
     </main>
   );
 }
