@@ -13,7 +13,7 @@ const ZENITH_COLOR = 0x3f8fdb;   // 天顶蓝
 const GROUND_COLOR = 0xe7e0cc;   // 地面米色（按用户提供色板）
 const GROUND_RADIUS = 18000;     // 圆盘地面半径（跟随相机，永远延伸到地平线、形成干净圆形天际线）
 const PHI_MAX = 1.50;            // 俯仰角上限：接近 π/2，配合抬头视线可仰望天空
-const LABEL_ZOOM_R = 3400;       // 相机距离小于此值才显示树标签（拉近看簇时），远景只靠悬停
+const LABEL_ZOOM_R = 3600;       // 拉近/簇近景自动显示屏幕内全部小标签；默认全景仍保持干净
 
 export class Scene3D {
     constructor(container, layout, data) {
@@ -91,6 +91,10 @@ export class Scene3D {
 
         this._needsVisRefresh = true;
         this._hoverId = null;
+        this._batchLabelIds = new Set();
+        this._showAllTreeLabels = false;
+        this._forceFullLabelsForRefresh = false;
+        this._onCameraChange = null;
         this._setupControls();
     }
 
@@ -217,6 +221,7 @@ export class Scene3D {
         this.camera.updateMatrixWorld();
         const rect = this.container.getBoundingClientRect();
         const v3 = new THREE.Vector3();
+        const domainBoxes = [];
         // 域标签
         for (const lbl of this._labelEls) {
             let sx = 0, sy = 0;
@@ -232,17 +237,85 @@ export class Scene3D {
             lbl.el.style.top = sy + "px";
             const off = sx < -200 || sx > rect.width + 200 || sy < -200 || sy > rect.height + 200;
             lbl.el.style.visibility = off ? "hidden" : "visible";
+            if (!off) {
+                const r = lbl.el.getBoundingClientRect();
+                domainBoxes.push({
+                    left: r.left - rect.left - 4,
+                    top: r.top - rect.top - 4,
+                    right: r.right - rect.left + 4,
+                    bottom: r.bottom - rect.top + 4,
+                });
+            }
         }
-        // 树标签（可见的才更新）
+        // 树标签：避开知识簇标题和已经摆好的树标签；悬停标签优先尝试多个方位
+        const occupied = [...domainBoxes];
         for (const m of this.treeMeta) {
             if (!m.label || m.label.style.display === "none") continue;
-            v3.set(m.pos[0], m.pos[1], 2);
+            v3.set(m.pos[0], m.pos[1], 0);
             v3.project(this.camera);
             const sx = (v3.x * 0.5 + 0.5) * rect.width;
             const sy = (-v3.y * 0.5 + 0.5) * rect.height;
-            m.label.style.left = sx + "px";
-            m.label.style.top = (sy - 8) + "px";  // 树冠稍上方
+            this._placeTreeLabel(m, sx, sy, rect, occupied);
         }
+    }
+
+    _boxesOverlap(a, b) {
+        return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+    }
+
+    _candidateLabelBox(el, sx, sy, placement) {
+        const w = el.offsetWidth || 72;
+        const h = el.offsetHeight || 22;
+        const gap = placement.gap || 18;
+        let left = sx + placement.x * gap;
+        let top = sy + placement.y * gap;
+        if (placement.anchorX === "center") left -= w / 2;
+        if (placement.anchorX === "right") left -= w;
+        if (placement.anchorY === "center") top -= h / 2;
+        if (placement.anchorY === "bottom") top -= h;
+        return { left, top, right: left + w, bottom: top + h };
+    }
+
+    _placeTreeLabel(m, sx, sy, rect, occupied) {
+        const el = m.label;
+        const hovered = m.id === this._hoverId;
+        const placements = hovered
+            ? [
+                { x: 1, y: -1, anchorX: "left", anchorY: "bottom", cls: "place-ne" },
+                { x: -1, y: -1, anchorX: "right", anchorY: "bottom", cls: "place-nw" },
+                { x: 1, y: 1, anchorX: "left", anchorY: "top", cls: "place-se" },
+                { x: -1, y: 1, anchorX: "right", anchorY: "top", cls: "place-sw" },
+            ]
+            : [
+                { x: 1, y: -1, anchorX: "left", anchorY: "bottom", gap: 14, cls: "place-ne" },
+                { x: -1, y: -1, anchorX: "right", anchorY: "bottom", gap: 14, cls: "place-nw" },
+                { x: 1, y: 1, anchorX: "left", anchorY: "top", gap: 14, cls: "place-se" },
+                { x: -1, y: 1, anchorX: "right", anchorY: "top", gap: 14, cls: "place-sw" },
+            ];
+        const margin = 4;
+        let chosen = null;
+        let box = null;
+        for (const p of placements) {
+            const b = this._candidateLabelBox(el, sx, sy, p);
+            const off = b.left < margin || b.top < margin || b.right > rect.width - margin || b.bottom > rect.height - margin;
+            const hit = occupied.some(o => this._boxesOverlap(b, o));
+            if (!off && !hit) { chosen = p; box = b; break; }
+        }
+        if (!chosen) {
+            if (hovered || this._showAllTreeLabels) {
+                chosen = placements[0];
+                box = this._candidateLabelBox(el, sx, sy, chosen);
+            } else {
+                el.style.visibility = "hidden";
+                return;
+            }
+        }
+        el.style.visibility = "visible";
+        el.classList.remove("place-ne", "place-nw", "place-se", "place-sw");
+        el.classList.add(chosen.cls);
+        el.style.left = box.left + "px";
+        el.style.top = box.top + "px";
+        occupied.push({ left: box.left - 3, top: box.top - 3, right: box.right + 3, bottom: box.bottom + 3 });
     }
 
     // 簇 accent → 自然树冠色：保留色相做区分，降饱和 + 适度压暗，去掉糖果感
@@ -363,6 +436,25 @@ export class Scene3D {
     dispose() {
         if (this._listeners) for (const [t, type, fn, opts] of this._listeners) t.removeEventListener(type, fn, opts);
         this._listeners = [];
+        this._onCameraChange = null;
+    }
+
+    getCameraHeight() {
+        if (!this._PHI || !this._state) return 50;
+        const pct = (this._state.phi - this._PHI.min) / (this._PHI.max - this._PHI.min) * 100;
+        return Math.max(0, Math.min(100, Math.round(pct)));
+    }
+
+    setCameraHeight(value) {
+        if (!this._PHI || !this._state) return;
+        const pct = Math.max(0, Math.min(100, Number(value) || 0)) / 100;
+        this._state.phi = this._PHI.min + pct * (this._PHI.max - this._PHI.min);
+        this._updateCamera();
+    }
+
+    onCameraChange(fn) {
+        this._onCameraChange = typeof fn === "function" ? fn : null;
+        if (this._onCameraChange) this._onCameraChange({ phi: this._state.phi, height: this.getCameraHeight() });
     }
 
     _updateCamera() {
@@ -392,6 +484,9 @@ export class Scene3D {
         if (this._needsVisRefresh) {
             this._applyVisibility(s.r, sf);
             this._needsVisRefresh = false;
+        }
+        if (this._onCameraChange) {
+            this._onCameraChange({ phi: s.phi, height: this.getCameraHeight() });
         }
     }
 
@@ -445,15 +540,33 @@ export class Scene3D {
             if (far) visible.add(m.id);
         }
 
-        // 标签默认不全开：仅在拉近(r 较小)时显示可见树标签，避免远景一片标签糊住画面
-        this._labelsShown = r < LABEL_ZOOM_R;
+        // 标签默认不全开：进入簇级近景后，屏幕内可见树的名称全部自动显示。
+        this._labelsShown = r < LABEL_ZOOM_R || this._forceFullLabelsForRefresh;
+        this._showAllTreeLabels = this._labelsShown;
+        this._batchLabelIds = new Set();
+        if (this._labelsShown) {
+            for (const m of sorted) {
+                if (!visible.has(m.id)) continue;
+                v3.set(m.pos[0], m.pos[1], 0);
+                v3.project(this.camera);
+                const sx = (v3.x * 0.5 + 0.5) * rect.width;
+                const sy = (-v3.y * 0.5 + 0.5) * rect.height;
+                const nearScreen = Number.isFinite(sx) && Number.isFinite(sy)
+                    && v3.z >= -1 && v3.z <= 1
+                    && sx > -80 && sx < rect.width + 80
+                    && sy > -80 && sy < rect.height + 80;
+                if (nearScreen) this._batchLabelIds.add(m.id);
+            }
+        }
+        this._forceFullLabelsForRefresh = false;
         this.highGroup.visible = true;
         for (const m of this.treeMeta) {
             const show = visible.has(m.id);
             m.mesh.visible = show;
             if (m.label) {
-                const showLabel = show && (this._labelsShown || m.id === this._hoverId);
+                const showLabel = show && (m.id === this._hoverId || this._batchLabelIds.has(m.id));
                 m.label.style.display = showLabel ? "" : "none";
+                m.label.style.visibility = showLabel ? "visible" : "hidden";
                 m.label.classList.toggle("is-hovered", m.id === this._hoverId);
             }
         }
@@ -467,13 +580,17 @@ export class Scene3D {
         const prev = this._hoverId && this.treeMeta.find(m => m.id === this._hoverId);
         if (prev && prev.label) {
             prev.label.classList.remove("is-hovered");
-            if (!this._labelsShown) prev.label.style.display = "none";
+            if (!this._batchLabelIds.has(prev.id)) {
+                prev.label.style.display = "none";
+                prev.label.style.visibility = "hidden";
+            }
         }
         this._hoverId = id || null;
         const cur = id && this.treeMeta.find(m => m.id === id);
         if (cur && cur.label && cur.mesh.visible) {
             cur.label.classList.add("is-hovered");
             cur.label.style.display = "";
+            cur.label.style.visibility = "visible";
         }
         this._updateLabelPositions();
     }
@@ -579,6 +696,7 @@ export class Scene3D {
     }
 
     flyTo(kpId) {
+        this.setHover(null);
         const meta = this.treeMeta.find(m => m.id === kpId);
         if (meta) {
             let tx, ty;
@@ -680,12 +798,13 @@ export class Scene3D {
 
     // 跳转到某个知识簇：框住该簇全部知识点的范围（图例 / 下拉用，23 簇都稳定生效）
     flyToCluster(clusterId) {
+        this.setHover(null);
         const members = this.treeMeta.filter(m => m.catId === clusterId);
         if (!members.length) {
             // 兜底：用 domain 标签位（适配器为 23 簇都填了 label_pos）
             const cr = this.layout.categories.find(c => c.id === clusterId) || this.layout.domains.find(d => d.id === clusterId);
             const lp = cr && (cr.label_pos);
-            if (lp) { const c = this._clampTarget(lp[0], lp[1]); this._state.target.x = c.x; this._state.target.y = c.y; this._state.r = 2500; this._needsVisRefresh = true; this._updateCamera(); }
+            if (lp) { const c = this._clampTarget(lp[0], lp[1]); this._state.target.x = c.x; this._state.target.y = c.y; this._state.r = 2500; this._forceFullLabelsForRefresh = true; this._needsVisRefresh = true; this._updateCamera(); }
             return;
         }
         let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
@@ -704,6 +823,7 @@ export class Scene3D {
         this._state.target.y = c.y;
         this._state.r = r;
         // 俯仰/朝向沿用当前视角，保持观感一致（不每次跳转翻转角度）
+        this._forceFullLabelsForRefresh = true;
         this._needsVisRefresh = true;
         this._updateCamera();
     }

@@ -3848,31 +3848,91 @@ button.forest-tree.is-open .tree-art {
   color: #1f5f52;
   outline: none;
 }
+.forest-camera-height-control {
+  position: absolute;
+  top: 66px;
+  right: 14px;
+  z-index: 80;
+  width: 194px;
+  padding: 10px 12px 11px;
+  border: 1px solid rgba(44, 64, 58, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 253, 247, 0.92);
+  box-shadow: 0 14px 34px rgba(38, 48, 44, 0.16);
+  backdrop-filter: blur(14px);
+}
+.forest-camera-height-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 7px;
+  color: #25312f;
+  font-size: 12px;
+  font-weight: 850;
+}
+.forest-camera-height-head output {
+  min-width: 24px;
+  color: #2f7567;
+  text-align: right;
+  font-weight: 900;
+}
+.forest-camera-height-control input[type="range"] {
+  display: block;
+  width: 100%;
+  height: 18px;
+  margin: 0;
+  accent-color: #2f7567;
+}
+.forest-camera-height-control input[type="range"]:focus-visible {
+  outline: 3px solid rgba(47, 117, 103, 0.16);
+  outline-offset: 2px;
+  border-radius: 999px;
+}
 .forest-tree-label {
   position: absolute;
-  max-width: 150px;
-  padding: 3px 8px;
-  border: 1px solid rgba(44, 64, 58, 0.12);
-  border-radius: 7px;
-  background: rgba(255, 253, 247, 0.88);
-  color: #314640;
-  box-shadow: 0 6px 16px rgba(38, 48, 44, 0.16);
-  backdrop-filter: blur(4px);
-  font-size: 12px;
-  font-weight: 700;
+  max-width: 132px;
+  padding: 2px 7px;
+  border: 1px solid rgba(255, 253, 247, 0.28);
+  border-radius: 999px;
+  background: rgba(31, 49, 43, 0.66);
+  color: rgba(255, 253, 247, 0.94);
+  box-shadow: 0 4px 11px rgba(31, 49, 43, 0.2);
+  backdrop-filter: blur(3px);
+  font-size: 11px;
+  font-weight: 650;
   line-height: 1.25;
   text-align: center;
-  transform: translate(-50%, -112%);
+  transform: none;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   pointer-events: none;
+  opacity: 0.92;
 }
 .forest-tree-label.is-hovered {
-  border-color: rgba(47, 117, 103, 0.28);
-  background: rgba(255, 255, 255, 0.96);
-  color: #20342d;
-  box-shadow: 0 8px 20px rgba(38, 48, 44, 0.22);
+  border-color: rgba(255, 253, 247, 0.46);
+  background: rgba(29, 48, 42, 0.82);
+  color: #ffffff;
+  box-shadow: 0 6px 16px rgba(31, 49, 43, 0.28);
+  opacity: 1;
+}
+.forest-tree-label::before {
+  content: "";
+  position: absolute;
+  width: 9px;
+  height: 1px;
+  border-top: 1px solid rgba(31, 49, 43, 0.38);
+}
+.forest-tree-label.place-ne::before,
+.forest-tree-label.place-se::before {
+  left: -9px;
+  top: 50%;
+}
+.forest-tree-label.place-nw::before,
+.forest-tree-label.place-sw::before {
+  right: -9px;
+  top: 50%;
 }
 /* 森林页详情面板转深色 */
 .forest-parity-page .forest-detail-panel {

@@ -9,6 +9,20 @@ import indexJson from '../data/index.json';
 type RawIndex = ForestIndex & { clusters: ClusterMeta[]; points: Array<{ id: string; clusterId: string; title: string }> };
 const FOREST_INDEX = indexJson as unknown as RawIndex;
 
+type SceneHandle = {
+  render: () => void;
+  resize: (w: number, h: number) => void;
+  raycast: (x: number, y: number) => string | null;
+  flyTo: (id: string) => void;
+  flyToCluster: (id: string) => void;
+  resetView: () => void;
+  setHover: (id: string | null) => void;
+  getCameraHeight: () => number;
+  setCameraHeight: (value: number) => void;
+  onCameraChange: (fn: ((state: { phi: number; height: number }) => void) | null) => void;
+  dispose: () => void;
+};
+
 function ForestMapPage() {
   const index = FOREST_INDEX;
   const navigate = useNavigate();
@@ -21,10 +35,11 @@ function ForestMapPage() {
     width: number;
     height: number;
   } | null>(null);
-  const sceneRef = useRef<{ render: () => void; resize: (w: number, h: number) => void; raycast: (x: number, y: number) => string | null; flyTo: (id: string) => void; flyToCluster: (id: string) => void; resetView: () => void; setHover: (id: string | null) => void; dispose: () => void } | null>(null);
+  const sceneRef = useRef<SceneHandle | null>(null);
   const [query, setQuery] = useState('');
   const [legendHidden, setLegendHidden] = useState(false);
   const [legendPosition, setLegendPosition] = useState<{ x: number; y: number } | null>(null);
+  const [cameraHeight, setCameraHeight] = useState(46);
 
   const clusterById = useMemo(() => {
     const m: Record<string, ClusterMeta> = {};
@@ -57,8 +72,9 @@ function ForestMapPage() {
     const el = containerRef.current;
     if (!el) return;
     const { layout, data } = buildSceneInputs(index);
-    const scene = new Scene3D(el, layout, data);
+    const scene = new Scene3D(el, layout, data) as SceneHandle;
     sceneRef.current = scene;
+    scene.onCameraChange((state) => setCameraHeight(state.height));
 
     let raf = 0;
     const loop = () => { raf = requestAnimationFrame(loop); scene.render(); };
@@ -97,6 +113,7 @@ function ForestMapPage() {
       el.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUpHover);
       el.removeEventListener('click', onClick);
+      scene.onCameraChange(null);
       scene.dispose(); // 解绑 Scene3D 的指针/滚轮监听，避免 StrictMode 双挂载残留
       el.replaceChildren(); // 清空 Scene3D 注入的 canvas/标签层
       sceneRef.current = null;
@@ -152,6 +169,13 @@ function ForestMapPage() {
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
   };
 
+  const cameraHeightLabel = cameraHeight < 34 ? '高' : cameraHeight < 68 ? '中' : '低';
+
+  const changeCameraHeight = (value: number) => {
+    setCameraHeight(value);
+    sceneRef.current?.setCameraHeight(value);
+  };
+
   return (
     <main id="main-content" className="forest-parity-page" aria-label="人工智能知识森林">
       <header id="forest-topbar">
@@ -187,6 +211,22 @@ function ForestMapPage() {
         </select>
         <button type="button" className="forest-reset" title="重置视图" onClick={() => sceneRef.current?.resetView()}>⟳</button>
       </header>
+
+      <div className="forest-camera-height-control" aria-label="视角高度控制">
+        <div className="forest-camera-height-head">
+          <span>视角高度</span>
+          <output>{cameraHeightLabel}</output>
+        </div>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          value={cameraHeight}
+          aria-label="调整视角高度"
+          onChange={(e) => changeCameraHeight(Number(e.target.value))}
+        />
+      </div>
 
       <div id="forest-canvas-container" ref={containerRef} />
 
