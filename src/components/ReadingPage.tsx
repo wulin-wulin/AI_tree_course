@@ -1,9 +1,21 @@
 import { useEffect, useState, type CSSProperties } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, Home, List, PanelRightClose } from 'lucide-react';
 import KnowledgeDetailPanel from './KnowledgeDetailPanel';
 import type { KnowledgeCluster, KnowledgePoint } from '../data/courseKnowledge';
 import { loadPoint } from '../forest/forestData';
+import {
+  isLearningPathUrl,
+  pathReadingUrl,
+  readLearningPath,
+  resolveLearningPathItems,
+  type LearningPathItem,
+  type LearningPathState,
+} from '../data/learningPath';
+import {
+  forestViewRestoreLocationState,
+  peekForestViewRestoreKey,
+} from '../data/forestViewState';
 import {
   adjacent,
   chapterPoints,
@@ -17,9 +29,12 @@ import {
 function ReadingPage() {
   const { chapterId, pointId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isDockOpen, setDockOpen] = useState(true);
   const [full, setFull] = useState<KnowledgePoint | null>(null);
   const [loadErr, setLoadErr] = useState(false);
+  const [pathState, setPathState] = useState<LearningPathState | null>(null);
+  const [pathItems, setPathItems] = useState<LearningPathItem[]>([]);
 
   const meta = findPoint(pointId);
   const chapter = findChapter(chapterId);
@@ -27,6 +42,12 @@ function ReadingPage() {
   useEffect(() => {
     if (meta) rememberLastPoint(meta.id);
   }, [meta?.id]);
+
+  useEffect(() => {
+    const saved = readLearningPath();
+    setPathState(saved);
+    setPathItems(resolveLearningPathItems(saved));
+  }, [location.search, pointId]);
 
   useEffect(() => {
     if (!pointId) return;
@@ -51,6 +72,32 @@ function ReadingPage() {
     if (target) navigate(pointPath(target));
   };
 
+  const goToPathPoint = (id: string) => {
+    const target = findPoint(id);
+    if (target) navigate(pathReadingUrl(target));
+  };
+
+  const returnToForest = () => {
+    const state = forestViewRestoreLocationState(peekForestViewRestoreKey());
+    if (state) navigate('/ai', { state });
+    else navigate('/ai');
+  };
+
+  const pathIndex = isLearningPathUrl(location.search)
+    ? pathItems.findIndex((item) => item.id === meta.id)
+    : -1;
+  const pathContext = pathState && pathIndex >= 0
+    ? {
+      query: pathState.query,
+      index: pathIndex + 1,
+      total: pathItems.length,
+      prev: pathIndex > 0 ? { id: pathItems[pathIndex - 1].id, title: pathItems[pathIndex - 1].title } : null,
+      next: pathIndex < pathItems.length - 1 ? { id: pathItems[pathIndex + 1].id, title: pathItems[pathIndex + 1].title } : null,
+      onSelect: goToPathPoint,
+      onReturn: returnToForest,
+    }
+    : null;
+
   return (
     <main
       id="main-content"
@@ -69,6 +116,7 @@ function ReadingPage() {
             positionInCluster={index}
             clusterTotal={total}
             onSelect={goToPoint}
+            pathContext={pathContext}
           />
         ) : loadErr ? (
           <p className="reading-loading">该知识点内容加载失败。</p>
@@ -113,7 +161,7 @@ function ReadingPage() {
             </ol>
 
             <div className="dock-foot">
-              <button type="button" className="dock-link" onClick={() => navigate('/ai')}>
+              <button type="button" className="dock-link" onClick={returnToForest}>
                 <ChevronLeft size={15} aria-hidden="true" />
                 切换章节
               </button>

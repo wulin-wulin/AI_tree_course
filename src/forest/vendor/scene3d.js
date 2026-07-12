@@ -8,9 +8,9 @@ import { createTree } from "./tree_factory.js";
 
 const CANVAS_W = 4000, CANVAS_H = 3000;
 // 日间色调（我的世界式明亮白天）
-const HORIZON_COLOR = 0xbfe1f2;  // 地平线浅蓝（同时作雾色 / clearColor 兜底；带蓝让白云有对比）
-const ZENITH_COLOR = 0x3f8fdb;   // 天顶蓝
-const GROUND_COLOR = 0xe7e0cc;   // 地面米色（按用户提供色板）
+const HORIZON_COLOR = 0xf5f6ef;  // 与首页一致的淡白底色（同时作 clearColor 兜底）
+const ZENITH_COLOR = 0xfffdf7;   // 顶部微暖白
+const GROUND_COLOR = 0xf5f6ef;   // 地面改为协调淡白色
 const GROUND_RADIUS = 18000;     // 圆盘地面半径（跟随相机，永远延伸到地平线、形成干净圆形天际线）
 const PHI_MAX = 1.50;            // 俯仰角上限：接近 π/2，配合抬头视线可仰望天空
 const LABEL_ZOOM_R = 3600;       // 拉近/簇近景自动显示屏幕内全部小标签；默认全景仍保持干净
@@ -41,8 +41,8 @@ export class Scene3D {
 
         // 白天日光：半球光给户外天/地自然补光 + 投影暖白阳光 + 少量环境光
         // （半球/环境压低一点，让阳光阴影读得出来、场景有立体感而不发平）
-        this.scene.add(new THREE.HemisphereLight(0xbfe3ff, 0x73904a, 0.62));
-        this.scene.add(new THREE.AmbientLight(0xffffff, 0.24));
+        this.scene.add(new THREE.HemisphereLight(0xfffdf7, 0xdde7d6, 0.78));
+        this.scene.add(new THREE.AmbientLight(0xffffff, 0.34));
         const sun = new THREE.DirectionalLight(0xfff4df, 1.45);
         sun.position.set(CANVAS_W / 2 + 1900, CANVAS_H / 2 - 2700, 4400);
         sun.target.position.set(CANVAS_W / 2, CANVAS_H / 2, 0);
@@ -88,6 +88,12 @@ export class Scene3D {
         // 高亮
         this.highlightGroup = new THREE.Group(); this.scene.add(this.highlightGroup);
         this.highlightGroup.visible = false;
+
+        // 学习路径：独立图层，便于生成/清空虚线和编号标记，不干扰树与簇边界。
+        this.learningPathGroup = new THREE.Group(); this.scene.add(this.learningPathGroup);
+        this._learningPathIds = [];
+        this._learningPathIdSet = new Set();
+        this._pathLabelEls = [];
 
         this._needsVisRefresh = true;
         this._hoverId = null;
@@ -166,7 +172,12 @@ export class Scene3D {
         // 形成连续的开放世界式圆形天际线（不再是会露出方块边的方形地面）。
         const g = new THREE.Mesh(
             new THREE.CircleGeometry(GROUND_RADIUS, 96),
-            new THREE.MeshLambertMaterial({ color: GROUND_COLOR, side: THREE.DoubleSide })
+            new THREE.MeshLambertMaterial({
+                color: GROUND_COLOR,
+                emissive: 0xf5f6ef,
+                emissiveIntensity: 0.38,
+                side: THREE.DoubleSide,
+            })
         );
         g.position.set(CANVAS_W / 2, CANVAS_H / 2, -0.5);
         g.receiveShadow = true;    // 承接树的投影
@@ -257,6 +268,7 @@ export class Scene3D {
             const sy = (-v3.y * 0.5 + 0.5) * rect.height;
             this._placeTreeLabel(m, sx, sy, rect, occupied);
         }
+        this._updatePathLabelPositions(rect);
     }
 
     _boxesOverlap(a, b) {
@@ -316,6 +328,43 @@ export class Scene3D {
         el.style.left = box.left + "px";
         el.style.top = box.top + "px";
         occupied.push({ left: box.left - 3, top: box.top - 3, right: box.right + 3, bottom: box.bottom + 3 });
+    }
+
+    _updatePathLabelPositions(rect) {
+        if (!this._pathLabelEls || !this._pathLabelEls.length) return;
+        const v3 = new THREE.Vector3();
+        const placements = [
+            { x: 0, y: -1, anchorX: "center", anchorY: "bottom", gap: 26 },
+            { x: 1, y: -1, anchorX: "left", anchorY: "bottom", gap: 22 },
+            { x: -1, y: -1, anchorX: "right", anchorY: "bottom", gap: 22 },
+            { x: 0, y: 1, anchorX: "center", anchorY: "top", gap: 22 },
+        ];
+        for (const item of this._pathLabelEls) {
+            const el = item.el;
+            v3.set(item.pos[0], item.pos[1], 0);
+            v3.project(this.camera);
+            const sx = (v3.x * 0.5 + 0.5) * rect.width;
+            const sy = (-v3.y * 0.5 + 0.5) * rect.height;
+            const off = !Number.isFinite(sx) || !Number.isFinite(sy)
+                || v3.z < -1 || v3.z > 1
+                || sx < -140 || sx > rect.width + 140
+                || sy < -120 || sy > rect.height + 120;
+            if (off) {
+                el.style.display = "none";
+                el.style.visibility = "hidden";
+                continue;
+            }
+            el.style.display = "";
+            const placement = placements[item.index % placements.length];
+            const box = this._candidateLabelBox(el, sx, sy, placement);
+            const margin = 6;
+            const left = Math.min(Math.max(margin, box.left), Math.max(margin, rect.width - (el.offsetWidth || 120) - margin));
+            const top = Math.min(Math.max(margin, box.top), Math.max(margin, rect.height - (el.offsetHeight || 24) - margin));
+            el.style.visibility = "visible";
+            el.style.left = left + "px";
+            el.style.top = top + "px";
+            el.classList.toggle("is-hovered", item.id === this._hoverId);
+        }
     }
 
     // 簇 accent → 自然树冠色：保留色相做区分，降饱和 + 适度压暗，去掉糖果感
@@ -437,6 +486,7 @@ export class Scene3D {
         if (this._listeners) for (const [t, type, fn, opts] of this._listeners) t.removeEventListener(type, fn, opts);
         this._listeners = [];
         this._onCameraChange = null;
+        this._clearPathLabels();
     }
 
     getCameraHeight() {
@@ -450,6 +500,40 @@ export class Scene3D {
         const pct = Math.max(0, Math.min(100, Number(value) || 0)) / 100;
         this._state.phi = this._PHI.min + pct * (this._PHI.max - this._PHI.min);
         this._updateCamera();
+    }
+
+    getViewState() {
+        if (!this._state || !this._state.target) return null;
+        return {
+            theta: this._state.theta,
+            phi: this._state.phi,
+            r: this._state.r,
+            target: {
+                x: this._state.target.x,
+                y: this._state.target.y,
+            },
+        };
+    }
+
+    restoreViewState(view) {
+        if (!this._PHI || !this._state || !view || !view.target) return false;
+        const theta = Number(view.theta);
+        const phi = Number(view.phi);
+        const r = Number(view.r);
+        const targetX = Number(view.target.x);
+        const targetY = Number(view.target.y);
+        if (![theta, phi, r, targetX, targetY].every(Number.isFinite)) return false;
+
+        this.setHover(null);
+        const c = this._clampTarget(targetX, targetY);
+        this._state.theta = theta;
+        this._state.phi = Math.max(this._PHI.min, Math.min(this._PHI.max, phi));
+        this._state.r = Math.max(250, Math.min(12000, r));
+        this._state.target.x = c.x;
+        this._state.target.y = c.y;
+        this._needsVisRefresh = true;
+        this._updateCamera();
+        return true;
     }
 
     onCameraChange(fn) {
@@ -540,8 +624,11 @@ export class Scene3D {
             if (far) visible.add(m.id);
         }
 
+        const pathMode = this._learningPathIdSet && this._learningPathIdSet.size > 0;
+
         // 标签默认不全开：进入簇级近景后，屏幕内可见树的名称全部自动显示。
-        this._labelsShown = r < LABEL_ZOOM_R || this._forceFullLabelsForRefresh;
+        // In path mode, path labels carry names and the normal black tree labels stay hidden.
+        this._labelsShown = !pathMode && (r < LABEL_ZOOM_R || this._forceFullLabelsForRefresh);
         this._showAllTreeLabels = this._labelsShown;
         this._batchLabelIds = new Set();
         if (this._labelsShown) {
@@ -561,10 +648,11 @@ export class Scene3D {
         this._forceFullLabelsForRefresh = false;
         this.highGroup.visible = true;
         for (const m of this.treeMeta) {
-            const show = visible.has(m.id);
+            const forcePath = pathMode && this._learningPathIdSet.has(m.id);
+            const show = visible.has(m.id) || forcePath;
             m.mesh.visible = show;
             if (m.label) {
-                const showLabel = show && (m.id === this._hoverId || this._batchLabelIds.has(m.id));
+                const showLabel = !pathMode && show && (m.id === this._hoverId || this._batchLabelIds.has(m.id));
                 m.label.style.display = showLabel ? "" : "none";
                 m.label.style.visibility = showLabel ? "visible" : "hidden";
                 m.label.classList.toggle("is-hovered", m.id === this._hoverId);
@@ -577,17 +665,18 @@ export class Scene3D {
     // 悬停某棵树时单独显示它的标签（远景默认隐藏标签，靠悬停做发现性）
     setHover(id) {
         if (id === this._hoverId) return;
+        const pathMode = this._learningPathIdSet && this._learningPathIdSet.size > 0;
         const prev = this._hoverId && this.treeMeta.find(m => m.id === this._hoverId);
         if (prev && prev.label) {
             prev.label.classList.remove("is-hovered");
-            if (!this._batchLabelIds.has(prev.id)) {
+            if (pathMode || !this._batchLabelIds.has(prev.id)) {
                 prev.label.style.display = "none";
                 prev.label.style.visibility = "hidden";
             }
         }
         this._hoverId = id || null;
         const cur = id && this.treeMeta.find(m => m.id === id);
-        if (cur && cur.label && cur.mesh.visible) {
+        if (!pathMode && cur && cur.label && cur.mesh.visible) {
             cur.label.classList.add("is-hovered");
             cur.label.style.display = "";
             cur.label.style.visibility = "visible";
@@ -619,6 +708,142 @@ export class Scene3D {
             if (ok) return cp.id;
         }
         return null;
+    }
+
+    _pathMetas(ids) {
+        const seen = new Set();
+        const metas = [];
+        for (const id of ids || []) {
+            if (seen.has(id)) continue;
+            seen.add(id);
+            const meta = this.treeMeta.find(m => m.id === id);
+            if (meta) metas.push(meta);
+        }
+        return metas;
+    }
+
+    _clearPathLabels() {
+        if (!this._pathLabelEls) {
+            this._pathLabelEls = [];
+            return;
+        }
+        for (const item of this._pathLabelEls) {
+            if (item && item.el) item.el.remove();
+        }
+        this._pathLabelEls = [];
+    }
+
+    _makePathLabel(meta, index, total) {
+        const kp = this.data.kpById[meta.id];
+        const name = (kp && kp.name_zh) || (meta.label && meta.label.title) || meta.id;
+        const el = document.createElement("div");
+        el.className = "forest-path-label";
+        if (index === 1) el.classList.add("is-start");
+        if (index === total) el.classList.add("is-end");
+        el.title = `${index}/${total} ${name}`;
+
+        const seq = document.createElement("span");
+        seq.className = "forest-path-label-index";
+        seq.textContent = String(index).padStart(2, "0");
+
+        const title = document.createElement("span");
+        title.className = "forest-path-label-title";
+        title.textContent = name;
+
+        el.append(seq, title);
+        el.style.visibility = "hidden";
+        this._labelLayer.appendChild(el);
+        this._pathLabelEls.push({ el, id: meta.id, pos: [meta.pos[0], meta.pos[1]], index: index - 1 });
+    }
+
+    _buildLearningPathMarkers(metas) {
+        const ringGeo = new THREE.RingGeometry(38, 58, 48);
+        const ringMat = new THREE.MeshBasicMaterial({
+            color: 0x1f9d72,
+            transparent: true,
+            opacity: 0.72,
+            side: THREE.DoubleSide,
+            depthWrite: false,
+            depthTest: false,
+        });
+        metas.forEach((m, i) => {
+            const ring = new THREE.Mesh(ringGeo, ringMat.clone());
+            if (i === metas.length - 1) ring.material.color.set(0xb45309);
+            ring.position.set(m.pos[0], m.pos[1], 9);
+            ring.renderOrder = 18;
+            this.learningPathGroup.add(ring);
+
+            this._makePathLabel(m, i + 1, metas.length);
+        });
+    }
+
+    setLearningPath(ids) {
+        this._clearGroup(this.learningPathGroup);
+        this._clearPathLabels();
+        const metas = this._pathMetas(ids);
+        this._learningPathIds = metas.map(m => m.id);
+        this._learningPathIdSet = new Set(this._learningPathIds);
+
+        if (metas.length >= 2) {
+            const points = metas.map(m => new THREE.Vector3(m.pos[0], m.pos[1], 18));
+            const routePoints = points.length > 2
+                ? new THREE.CatmullRomCurve3(points, false, "catmullrom", 0.18).getPoints(Math.max(64, points.length * 18))
+                : points;
+            const geo = new THREE.BufferGeometry().setFromPoints(routePoints);
+            const mat = new THREE.LineDashedMaterial({
+                color: 0x1f9d72,
+                dashSize: 86,
+                gapSize: 52,
+                linewidth: 2,
+                transparent: true,
+                opacity: 0.9,
+                depthWrite: false,
+                depthTest: false,
+            });
+            const line = new THREE.Line(geo, mat);
+            line.computeLineDistances();
+            line.renderOrder = 16;
+            this.learningPathGroup.add(line);
+        }
+
+        this._buildLearningPathMarkers(metas);
+        this._needsVisRefresh = true;
+        this._updateCamera();
+    }
+
+    clearLearningPath() {
+        this._clearGroup(this.learningPathGroup);
+        this._clearPathLabels();
+        this._learningPathIds = [];
+        this._learningPathIdSet = new Set();
+        this._needsVisRefresh = true;
+        this._updateCamera();
+    }
+
+    focusLearningPath() {
+        const metas = this._pathMetas(this._learningPathIds);
+        if (!metas.length) return;
+        if (metas.length === 1) {
+            this.flyTo(metas[0].id);
+            return;
+        }
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        for (const m of metas) {
+            const x = m.pos[0], y = m.pos[1];
+            if (x < minX) minX = x; if (x > maxX) maxX = x;
+            if (y < minY) minY = y; if (y > maxY) maxY = y;
+        }
+        const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+        let r = this._frameRadius(Math.max(260, maxX - minX), Math.max(260, maxY - minY), 1.35);
+        const maxR = (this._best && this._best.r) || 6000;
+        r = Math.max(850, Math.min(maxR, r));
+        const c = this._clampTarget(cx, cy);
+        this._state.target.x = c.x;
+        this._state.target.y = c.y;
+        this._state.r = r;
+        this._forceFullLabelsForRefresh = true;
+        this._needsVisRefresh = true;
+        this._updateCamera();
     }
 
     /* ============ 公共接口 ============ */
@@ -847,5 +1072,22 @@ export class Scene3D {
         this._updateCamera();
     }
 
-    _clearGroup(g) { while (g.children.length > 0) g.remove(g.children[0]); }
+    _disposeObject(obj) {
+        obj.traverse(child => {
+            if (child.geometry) child.geometry.dispose();
+            const materials = Array.isArray(child.material) ? child.material : (child.material ? [child.material] : []);
+            for (const mat of materials) {
+                if (mat.map) mat.map.dispose();
+                mat.dispose();
+            }
+        });
+    }
+
+    _clearGroup(g) {
+        while (g.children.length > 0) {
+            const child = g.children[0];
+            g.remove(child);
+            this._disposeObject(child);
+        }
+    }
 }

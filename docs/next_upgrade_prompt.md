@@ -9,16 +9,18 @@
 3. `docs/requirements/current_state.md`
 4. `docs/requirements/rounds/R014_forest_label_legend_chrome_polish.md`
 5. `docs/requirements/rounds/R015_forest_label_occlusion_and_camera_height.md`
+6. `docs/requirements/rounds/R016_reading_content_and_domain_learning_path.md`
+7. `docs/requirements/rounds/R017_forest_view_restore_and_showcase_points.md`
 
 ## 当前执行轮次
 
-`R015`（状态：`Ready`，**可实现**）
+`R017`（状态：`Ready`，**可实现**）
 
-> R001–R013 已结束并归档为 `Accepted`；R014 已 `Reviewed` 但未验收，问题转入 R015。**R015：只聚焦 `/ai` 森林页两个微调点**——①重做知识点名称标签的遮挡策略，避免白底黑字标签遮住树冠或与知识簇标题重合；②在右上方增加相机高度/视角高度滑块，方便用户寻找最佳视角。不要改数据、布局算法、首页、阅读页、森林天空/地面/树形场景本体；保留 R014 已完成的浅色 chrome 与导览窗拖动/隐藏能力。详见轮次文档。
+> R001–R013 已结束并归档为 `Accepted`；R014 已 `Reviewed` 但未单独验收，其问题由 R015 修正并并入当前基线；R015 已 `Accepted`；R016 已 `Implemented`、待需求窗口审核。**R017：森林视图返回恢复 + 录屏展示级知识点打磨**——①从森林页进入知识点阅读页后，点击阅读页“切换章节”返回森林时恢复进入前的相机视图位置，而不是回默认视角；②精选 4-6 个适合客户录屏展示的知识点，做样板级内容与展示重构，图文并茂，公式美观，尽量有动画。不要接后端/数据库/外部 LLM，不要回退 R014/R015/R016 已实现能力。详见轮次文档。
 
 ## 实现完成后请自检视觉（UI 改动适用）
 
-涉及界面/视觉的改动，完成后请用项目 Playwright 截图工作流截取相关页面（本轮为 `/#/ai` 的默认全景、悬停单棵树标签、簇跳转近景、高/中/低三档相机高度滑块、滑块与右键拖动/重置/簇跳转兼容状态），**自己查看截图核对效果**，按需微调迭代后再报告完成。详见 `docs/requirements/AGENT_PROTOCOL.md` 执行流程。
+涉及界面/视觉的改动，完成后请用项目 Playwright 截图工作流截取相关页面（本轮至少包含：森林进入前视图、阅读页返回后恢复视图、每个精选知识点阅读页、至少一个动画/公式特写），**自己查看截图核对效果**，按需微调迭代后再报告完成。详见 `docs/requirements/AGENT_PROTOCOL.md` 执行流程。
 
 ## 执行规则
 

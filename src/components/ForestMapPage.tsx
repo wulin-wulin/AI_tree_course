@@ -1,9 +1,30 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { BookOpen, Crosshair, Loader2, Route, Trash2 } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 // @ts-expect-error vendor JS（参考项目原样）
 import { Scene3D } from '../forest/vendor/scene3d.js';
 import { buildSceneInputs } from '../forest/forestAdapter';
 import { type ForestIndex, type ClusterMeta } from '../forest/forestData';
+import {
+  clearLearningPath,
+  generateLearningPath,
+  pathReadingUrl,
+  readLearningPath,
+  resolveLearningPathItems,
+  saveLearningPath,
+  type LearningPathItem,
+  type LearningPathState,
+} from '../data/learningPath';
+import {
+  FOREST_VIEW_RESTORE_MAX_AGE_MS,
+  clearForestViewState as clearSavedForestViewState,
+  consumeForestViewState,
+  getForestViewRestoreKey,
+  markCurrentForestHistoryEntryForRestore,
+  readForestViewState,
+  saveForestViewState,
+  type ForestCameraViewState,
+} from '../data/forestViewState';
 import indexJson from '../data/index.json';
 
 type RawIndex = ForestIndex & { clusters: ClusterMeta[]; points: Array<{ id: string; clusterId: string; title: string }> };
@@ -16,16 +37,22 @@ type SceneHandle = {
   flyTo: (id: string) => void;
   flyToCluster: (id: string) => void;
   resetView: () => void;
+  getViewState: () => ForestCameraViewState | null;
+  restoreViewState: (state: ForestCameraViewState) => boolean;
   setHover: (id: string | null) => void;
   getCameraHeight: () => number;
   setCameraHeight: (value: number) => void;
   onCameraChange: (fn: ((state: { phi: number; height: number }) => void) | null) => void;
+  setLearningPath: (ids: string[]) => void;
+  clearLearningPath: () => void;
+  focusLearningPath: () => void;
   dispose: () => void;
 };
 
 function ForestMapPage() {
   const index = FOREST_INDEX;
   const navigate = useNavigate();
+  const location = useLocation();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const legendRef = useRef<HTMLDivElement | null>(null);
   const legendDragRef = useRef<{
@@ -37,6 +64,11 @@ function ForestMapPage() {
   } | null>(null);
   const sceneRef = useRef<SceneHandle | null>(null);
   const [query, setQuery] = useState('');
+  const [pathQuery, setPathQuery] = useState('');
+  const [pathState, setPathState] = useState<LearningPathState | null>(null);
+  const [pathItems, setPathItems] = useState<LearningPathItem[]>([]);
+  const [pathLoading, setPathLoading] = useState(false);
+  const [pathMessage, setPathMessage] = useState('');
   const [legendHidden, setLegendHidden] = useState(false);
   const [legendPosition, setLegendPosition] = useState<{ x: number; y: number } | null>(null);
   const [cameraHeight, setCameraHeight] = useState(46);
@@ -59,13 +91,40 @@ function ForestMapPage() {
     return m;
   }, [index]);
 
+  const saveCurrentView = (reason: string) => {
+    const view = sceneRef.current?.getViewState();
+    if (!view) return null;
+    const saved = saveForestViewState(view, reason);
+    if (saved) markCurrentForestHistoryEntryForRestore(saved.key);
+    return saved;
+  };
+
   // 点击/搜索 → 进入原阅读页
   const openReading = (id: string) => {
     const clusterId = clusterOfPoint[id];
-    if (clusterId) navigate(`/ai/${clusterId}/${id}`);
+    if (clusterId) {
+      saveCurrentView(`point:${id}`);
+      navigate(`/ai/${clusterId}/${id}`);
+    }
   };
   const openReadingRef = useRef(openReading);
   openReadingRef.current = openReading;
+
+  useEffect(() => {
+    const syncPath = () => {
+      const saved = readLearningPath();
+      setPathState(saved);
+      setPathItems(resolveLearningPathItems(saved));
+      setPathQuery((current) => current || saved?.query || '');
+    };
+    syncPath();
+    window.addEventListener('storage', syncPath);
+    window.addEventListener('learning-path-change', syncPath);
+    return () => {
+      window.removeEventListener('storage', syncPath);
+      window.removeEventListener('learning-path-change', syncPath);
+    };
+  }, []);
 
   // 启动 Scene3D（参考项目原生场景）
   useEffect(() => {
@@ -74,7 +133,19 @@ function ForestMapPage() {
     const { layout, data } = buildSceneInputs(index);
     const scene = new Scene3D(el, layout, data) as SceneHandle;
     sceneRef.current = scene;
+    const savedPath = readLearningPath();
+    if (savedPath?.ids.length) scene.setLearningPath(savedPath.ids);
     scene.onCameraChange((state) => setCameraHeight(state.height));
+    const restoreKey = getForestViewRestoreKey(location.state);
+    const savedView = readForestViewState({
+      key: restoreKey,
+      maxAgeMs: FOREST_VIEW_RESTORE_MAX_AGE_MS,
+    });
+    let restoreConsumeTimer = 0;
+    if (savedView && scene.restoreViewState(savedView.view)) {
+      setCameraHeight(scene.getCameraHeight());
+      restoreConsumeTimer = window.setTimeout(() => consumeForestViewState(restoreKey), 250);
+    }
 
     let raf = 0;
     const loop = () => { raf = requestAnimationFrame(loop); scene.render(); };
@@ -107,6 +178,7 @@ function ForestMapPage() {
     el.addEventListener('click', onClick);
 
     return () => {
+      if (restoreConsumeTimer) window.clearTimeout(restoreConsumeTimer);
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', onResize);
       el.removeEventListener('pointerdown', onPointerDown);
@@ -118,7 +190,13 @@ function ForestMapPage() {
       el.replaceChildren(); // 清空 Scene3D 注入的 canvas/标签层
       sceneRef.current = null;
     };
-  }, [index]);
+  }, [index, location.state]);
+
+  useEffect(() => {
+    const ids = pathItems.map((item) => item.id);
+    if (ids.length) sceneRef.current?.setLearningPath(ids);
+    else sceneRef.current?.clearLearningPath();
+  }, [pathItems]);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -176,6 +254,50 @@ function ForestMapPage() {
     sceneRef.current?.setCameraHeight(value);
   };
 
+  const runGeneratePath = async () => {
+    const clean = pathQuery.trim();
+    if (!clean) {
+      setPathMessage('请输入领域关键词');
+      return;
+    }
+    setPathLoading(true);
+    setPathMessage('');
+    try {
+      const result = await generateLearningPath(clean);
+      if (!result.items.length) {
+        setPathState(null);
+        setPathItems([]);
+        setPathMessage('没有找到足够相关的知识点');
+        return;
+      }
+      saveLearningPath(result.state);
+      setPathState(result.state);
+      setPathItems(result.items);
+      setPathMessage(`已生成 ${result.items.length} 个知识点`);
+      requestAnimationFrame(() => sceneRef.current?.focusLearningPath());
+    } catch {
+      setPathMessage('生成失败，请稍后重试');
+    } finally {
+      setPathLoading(false);
+    }
+  };
+
+  const clearCurrentPath = () => {
+    clearLearningPath();
+    setPathState(null);
+    setPathItems([]);
+    setPathMessage('路径已清空');
+    sceneRef.current?.clearLearningPath();
+  };
+
+  const startPathReading = () => {
+    const first = pathItems[0];
+    if (first) {
+      saveCurrentView(`learning-path:${first.id}`);
+      navigate(pathReadingUrl(first));
+    }
+  };
+
   return (
     <main id="main-content" className="forest-parity-page" aria-label="人工智能知识森林">
       <header id="forest-topbar">
@@ -209,7 +331,15 @@ function ForestMapPage() {
             <option key={c.id} value={c.id}>{c.title}</option>
           ))}
         </select>
-        <button type="button" className="forest-reset" title="重置视图" onClick={() => sceneRef.current?.resetView()}>⟳</button>
+        <button
+          type="button"
+          className="forest-reset"
+          title="重置视图"
+          onClick={() => {
+            clearSavedForestViewState();
+            sceneRef.current?.resetView();
+          }}
+        >⟳</button>
       </header>
 
       <div className="forest-camera-height-control" aria-label="视角高度控制">
@@ -227,6 +357,82 @@ function ForestMapPage() {
           onChange={(e) => changeCameraHeight(Number(e.target.value))}
         />
       </div>
+
+      <section className="forest-learning-path-panel" aria-label="领域学习路径">
+        <div className="forest-learning-path-head">
+          <h2>
+            <Route size={16} aria-hidden="true" />
+            学习路径
+          </h2>
+          {pathState ? <small>{pathState.query}</small> : null}
+        </div>
+        <form
+          className="forest-learning-path-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void runGeneratePath();
+          }}
+        >
+          <input
+            type="text"
+            value={pathQuery}
+            onChange={(e) => setPathQuery(e.target.value)}
+            placeholder="大语言模型 / 计算机视觉 / 强化学习"
+            aria-label="输入学习领域"
+          />
+          <button type="submit" disabled={pathLoading}>
+            {pathLoading ? <Loader2 size={15} aria-hidden="true" className="spin-icon" /> : <Route size={15} aria-hidden="true" />}
+            生成
+          </button>
+        </form>
+
+        <div className="forest-learning-path-actions">
+          <button type="button" disabled={!pathItems.length} onClick={() => sceneRef.current?.focusLearningPath()}>
+            <Crosshair size={14} aria-hidden="true" />
+            聚焦
+          </button>
+          <button type="button" disabled={!pathItems.length} onClick={startPathReading}>
+            <BookOpen size={14} aria-hidden="true" />
+            开始学习
+          </button>
+          <button type="button" disabled={!pathItems.length && !pathState} onClick={clearCurrentPath}>
+            <Trash2 size={14} aria-hidden="true" />
+            清空
+          </button>
+        </div>
+
+        {pathMessage ? <p className="forest-learning-path-status" aria-live="polite">{pathMessage}</p> : null}
+
+        {pathItems.length ? (
+          <ol className="forest-learning-path-list">
+            {pathItems.map((item, itemIndex) => (
+              <li key={item.id}>
+                <button type="button" className="forest-path-locate" onClick={() => sceneRef.current?.flyTo(item.id)}>
+                  <span className="forest-path-index">{String(itemIndex + 1).padStart(2, '0')}</span>
+                  <span className="forest-path-text">
+                    <strong>{item.title}</strong>
+                    <small>{item.clusterTitle}{item.reason ? ` · ${item.reason}` : ''}</small>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="forest-path-read"
+                  title={`阅读：${item.title}`}
+                  aria-label={`阅读 ${item.title}`}
+                  onClick={() => {
+                    saveCurrentView(`learning-path:${item.id}`);
+                    navigate(pathReadingUrl(item));
+                  }}
+                >
+                  <BookOpen size={14} aria-hidden="true" />
+                </button>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <p className="forest-learning-path-empty">暂无路径</p>
+        )}
+      </section>
 
       <div id="forest-canvas-container" ref={containerRef} />
 
